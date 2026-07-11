@@ -552,7 +552,7 @@ with tab2:
                 
                 # 조별 순위 아코디언 형태로 이쁘게 보기
                 for gn in sorted(list(st.session_state.groups.keys())):
-                    with st.accordion(f"Group {gn} 순위", expanded=(gn == 'A')):
+                    with st.expander(f"Group {gn} 순위", expanded=(gn == 'A')):
                         data_rows = []
                         for rank, (team_code, stats) in enumerate(group_standings[gn]):
                             prefix = "✅" if rank < 2 else "⏳"
