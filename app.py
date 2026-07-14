@@ -323,6 +323,9 @@ with tab2:
             opponent_color=o_team["primary_color"],
             user_text_color=u_team["secondary_color"],
             opponent_text_color=o_team["secondary_color"],
+            match_type=match_type,
+            user_points=u_team["points"],
+            opponent_points=o_team["points"],
             key=f"playable_match_{user_code}_{opp_code}_{match_idx}_{bracket_round}"
         )
         
@@ -334,37 +337,67 @@ with tab2:
                 
                 user_score = game_result["userScore"]
                 opp_score = game_result["aiScore"]
+                user_pk = game_result.get("userPKScore")
+                opp_pk = game_result.get("aiPKScore")
                 
                 # 매치 결과 저장
                 if match_type == "group" and match_idx is not None:
-                    # 조별 리그 경기 결과 반영
-                    st.session_state.group_matches[match_idx]["score1"] = user_score
-                    st.session_state.group_matches[match_idx]["score2"] = opp_score
-                    st.session_state.group_matches[match_idx]["played"] = True
+                    # 조별 리그 경기 결과 반영 (홈/어웨이에 따른 스코어 정렬)
+                    match_data = st.session_state.group_matches[match_idx]
+                    if match_data["team1"] == user_code:
+                        match_data["score1"] = user_score
+                        match_data["score2"] = opp_score
+                    else:
+                        match_data["score1"] = opp_score
+                        match_data["score2"] = user_score
+                    match_data["played"] = True
                     st.success(f"경기 종료! 최종 스코어: {u_team['name']} {user_score} - {opp_score} {o_team['name']}")
                 
                 elif match_type == "knockout" and bracket_round and match_idx is not None:
-                    # 토너먼트 경기 결과 반영 (동점 시 승부차기 분기 처리 확인)
-                    if user_score == opp_score:
-                        # 동점이면 승부차기 트리거
-                        st.session_state.penalty_shootout = {
-                            "round": bracket_round,
-                            "idx": match_idx,
-                            "user_code": user_code,
-                            "opp_code": opp_code,
-                            "user_score": user_score,
-                            "opp_score": opp_score,
-                            "user_pk": [],
-                            "opp_pk": [],
-                            "step": 0
-                        }
+                    # 토너먼트 경기 결과 반영 (홈/어웨이에 따른 스코어 정렬)
+                    match_data = st.session_state.bracket_matches[bracket_round][match_idx]
+                    
+                    if user_pk is not None and opp_pk is not None:
+                        # 게임 컴포넌트 내부에서 승부차기까지 완료된 경우
+                        u_tot = f"{user_score} ({user_pk})"
+                        o_tot = f"{opp_score} ({opp_pk})"
+                        
+                        if match_data["team1"] == user_code:
+                            match_data["score1"] = u_tot
+                            match_data["score2"] = o_tot
+                        else:
+                            match_data["score1"] = o_tot
+                            match_data["score2"] = u_tot
+                            
+                        match_data["played"] = True
+                        winner = user_code if user_pk > opp_pk else opp_code
+                        match_data["winner"] = winner
+                        st.success(f"경기 종료 (승부차기)! 최종 스코어: {u_team['name']} {u_tot} - {o_tot} {o_team['name']}")
                     else:
-                        st.session_state.bracket_matches[bracket_round][match_idx]["score1"] = user_score
-                        st.session_state.bracket_matches[bracket_round][match_idx]["score2"] = opp_score
-                        st.session_state.bracket_matches[bracket_round][match_idx]["played"] = True
-                        winner = user_code if user_score > opp_score else opp_code
-                        st.session_state.bracket_matches[bracket_round][match_idx]["winner"] = winner
-                        st.success(f"경기 종료! 최종 스코어: {u_team['name']} {user_score} - {opp_score} {o_team['name']}")
+                        # 게임 컴포넌트에서 PK를 안 거치고 온 경우 (동점 시 Streamlit 승부차기로 진입)
+                        if user_score == opp_score:
+                            st.session_state.penalty_shootout = {
+                                "round": bracket_round,
+                                "idx": match_idx,
+                                "user_code": user_code,
+                                "opp_code": opp_code,
+                                "user_score": user_score,
+                                "opp_score": opp_score,
+                                "user_pk": [],
+                                "opp_pk": [],
+                                "step": 0
+                            }
+                        else:
+                            if match_data["team1"] == user_code:
+                                match_data["score1"] = user_score
+                                match_data["score2"] = opp_score
+                            else:
+                                match_data["score1"] = opp_score
+                                match_data["score2"] = user_score
+                            match_data["played"] = True
+                            winner = user_code if user_score > opp_score else opp_code
+                            match_data["winner"] = winner
+                            st.success(f"경기 종료! 최종 스코어: {u_team['name']} {user_score} - {opp_score} {o_team['name']}")
                 
                 # 플레이 경기 비활성화 및 리프레시
                 st.session_state.active_playable_match = None
