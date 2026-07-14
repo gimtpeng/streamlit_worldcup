@@ -7,7 +7,7 @@
     body {
       margin: 0;
       padding: 0;
-      background-color: #1a1a1a;
+      background-color: transparent;
       font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
       overflow: hidden;
       display: flex;
@@ -162,8 +162,12 @@
       return dist < (obj1.radius + obj2.radius);
     }
 
-    // Streamlit 통신용 핸드셰이크
-    window.parent.postMessage({ type: "streamlit:componentReady" }, "*");
+    // Streamlit 통신용 핸드셰이크 (isStreamlitMessage 및 apiVersion 필수)
+    window.parent.postMessage({
+      isStreamlitMessage: true,
+      type: "streamlit:componentReady",
+      apiVersion: 1
+    }, "*");
 
     // Streamlit 렌더링 메시지 수신
     window.addEventListener("message", (event) => {
@@ -183,6 +187,13 @@
             drawStartScreen();
           }
         }
+        
+        // 프레임 높이를 설정하여 Iframe 영역이 잘리지 않도록 지정
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setFrameHeight",
+          height: 520
+        }, "*");
       }
     });
 

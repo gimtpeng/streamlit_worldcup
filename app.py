@@ -32,19 +32,19 @@ st.markdown("""
         /* 폰트 및 배경 설정 */
         html, body, [data-testid="stAppViewContainer"] {
             font-family: 'Inter', sans-serif;
-            background-color: #0f111a;
-            color: #e2e8f0;
+            background-color: #f8fafc;
+            color: #0f172a;
         }
         
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Outfit', sans-serif;
             font-weight: 800;
-            color: #ffffff;
+            color: #0f172a;
         }
         
         /* 메인 배너 그래디언트 */
         .header-title {
-            background: linear-gradient(135deg, #ff4b4b 0%, #f39c12 50%, #2ecc71 100%);
+            background: linear-gradient(135deg, #e11d48 0%, #ea580c 50%, #16a34a 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             font-size: 3rem;
@@ -54,26 +54,26 @@ st.markdown("""
         }
         .header-subtitle {
             font-size: 1.2rem;
-            color: #94a3b8;
+            color: #475569;
             text-align: center;
             margin-bottom: 2rem;
         }
         
         /* 프리미엄 카드 디자인 */
         .glass-card {
-            background: rgba(30, 41, 59, 0.45);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(15, 23, 42, 0.08);
             border-radius: 16px;
             padding: 1.5rem;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.05);
             margin-bottom: 1.5rem;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
         }
         
         .standing-card {
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(241, 245, 249, 0.8);
+            border: 1px solid rgba(15, 23, 42, 0.05);
             border-radius: 12px;
             padding: 1rem;
             margin-bottom: 0.8rem;
@@ -91,8 +91,8 @@ st.markdown("""
         }
         
         .badge-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: #cbd5e1;
+            background: rgba(15, 23, 42, 0.06);
+            color: #475569;
             padding: 4px 12px;
             border-radius: 20px;
             font-weight: 600;
@@ -963,7 +963,7 @@ with tab2:
             <div style="text-align: center; margin: 2rem 0;">
                 <span style="font-size: 5rem;">👑</span>
                 <h1 style="color: #FFD700; font-size: 4rem; font-weight: 800; text-shadow: 0 0 20px rgba(255,215,0,0.5);">{champion_name}</h1>
-                <p style="font-size: 1.5rem; color: #a0aec0;">2026 FIFA World Cup 우승을 축하합니다!</p>
+                <p style="font-size: 1.5rem; color: #475569;">2026 FIFA World Cup 우승을 축하합니다!</p>
             </div>
         """, unsafe_allow_html=True)
         
