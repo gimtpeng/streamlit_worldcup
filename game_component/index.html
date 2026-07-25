@@ -1000,23 +1000,65 @@
         // 일반 필드 플레이어 AI
         let targetX = p.homeX;
         let targetY = p.homeY;
+        p.isMakingRun = false; // 기본 런 상태 해제
 
         const hasTeamBall = ball.owner && ball.owner.team === p.team;
 
         if (hasTeamBall) {
-          // 공격 시 지원 런
+          // [공격] 지능적 공간 침투 오프더볼 (Off-the-ball Runs)
           if (p.pos === "FW") {
-            targetX = Math.min(canvas.width - 50, ball.x + 130);
-            targetY = p.homeY + (ball.y - p.homeY) * 0.45;
+            let runTargetX = (p.team === "user") ? Math.min(canvas.width - 50, ball.x + 180) : Math.max(50, ball.x - 180);
+            let runTargetY = p.homeY + (ball.y - p.homeY) * 0.45;
+            
+            // 근처 적 수비수를 찾아 그 수비수로부터 떨어지는 공간으로 조향
+            let closestOpp = null;
+            let minOppD = Infinity;
+            matchPlayers.forEach(opp => {
+              if (opp.team !== p.team) {
+                const d = Math.sqrt((opp.x - runTargetX)**2 + (opp.y - runTargetY)**2);
+                if (d < minOppD) {
+                  minOppD = d;
+                  closestOpp = opp;
+                }
+              }
+            });
+
+            if (minOppD < 90 && closestOpp) {
+              const dy = runTargetY - closestOpp.y;
+              runTargetY += Math.sign(dy || 1) * 65; // 빈 공간으로 횡축 런
+            }
+            targetX = runTargetX;
+            targetY = runTargetY;
+            p.isMakingRun = true;
           } else if (p.pos === "MF") {
-            targetX = ball.x - 40;
-            targetY = p.homeY + (ball.y - p.homeY) * 0.5;
+            // 미드필더: 패스를 받기 용이한 빈 하프스페이스 포켓으로 이동
+            let pocketX = ball.x + (p.team === "user" ? 75 : -75);
+            let pocketY = p.homeY + (ball.y - p.homeY) * 0.5;
+            
+            let closestOpp = null;
+            let minOppD = Infinity;
+            matchPlayers.forEach(opp => {
+              if (opp.team !== p.team) {
+                const d = Math.sqrt((opp.x - pocketX)**2 + (opp.y - pocketY)**2);
+                if (d < minOppD) {
+                  minOppD = d;
+                  closestOpp = opp;
+                }
+              }
+            });
+
+            if (minOppD < 70 && closestOpp) {
+              pocketY += Math.sign(pocketY - closestOpp.y || 1) * 45;
+            }
+            targetX = pocketX;
+            targetY = pocketY;
           } else {
-            targetX = p.homeX + 60;
+            // 수비수: 후방 빌드업 지원 및 라인 전진
+            targetX = p.homeX + (p.team === "user" ? 60 : -60);
             targetY = p.homeY;
           }
         } else {
-          // 수비 시 대인 마킹 및 공 압박
+          // [수비] 대인 마킹, 볼 압박, 패스 길목 인터셉트
           let closestToBall = null;
           let minDist = Infinity;
           
@@ -1034,37 +1076,56 @@
             targetX = ball.x;
             targetY = ball.y;
           } else {
-            // 가장 가까운 적을 마킹
-            let baseTargetX = p.homeX;
-            let baseTargetY = p.homeY;
-
-            let markTarget = null;
-            let minOppDist = Infinity;
-            matchPlayers.forEach(opp => {
-              if (opp.team !== p.team && opp.pos !== "GK") {
-                const d = Math.sqrt((p.x - opp.x)**2 + (p.y - opp.y)**2);
-                if (d < minOppDist) {
-                  minOppDist = d;
-                  markTarget = opp;
-                }
+            // 패스 예측 인터셉트 물리 (Vector Projection Interception)
+            const ballSpd = Math.sqrt(ball.vx*ball.vx + ball.vy*ball.vy);
+            let isIntercepting = false;
+            
+            if (!ball.owner && ballSpd > 2.2) {
+              const dx = p.x - ball.x;
+              const dy = p.y - ball.y;
+              const proj = (dx * ball.vx + dy * ball.vy) / (ballSpd * ballSpd);
+              
+              // 공이 굴러가는 전방 방향이고 패스 연장선 1.4초 지점 이내일 때
+              if (proj > 0 && proj < 1.4) {
+                targetX = ball.x + ball.vx * proj;
+                targetY = ball.y + ball.vy * proj;
+                isIntercepting = true;
               }
-            });
-
-            if (markTarget && minOppDist < 180) {
-              const goalX = (p.team === "user") ? 50 : canvas.width - 50;
-              baseTargetX = markTarget.x * 0.75 + goalX * 0.25;
-              baseTargetY = markTarget.y * 0.75 + (canvas.height/2) * 0.25;
             }
 
-            // 상대 공일 때 한곳으로 뭉치지 않도록 볼 주위 110px 대형 유지 (밀어내기 존 수비)
-            const ballDist = Math.sqrt((baseTargetX - ball.x)**2 + (baseTargetY - ball.y)**2);
-            if (ballDist < 110) {
-              const angle = Math.atan2(baseTargetY - ball.y, baseTargetX - ball.x);
-              targetX = ball.x + Math.cos(angle) * 110;
-              targetY = ball.y + Math.sin(angle) * 110;
-            } else {
-              targetX = baseTargetX;
-              targetY = baseTargetY;
+            if (!isIntercepting) {
+              // 대인 마킹
+              let baseTargetX = p.homeX;
+              let baseTargetY = p.homeY;
+
+              let markTarget = null;
+              let minOppDist = Infinity;
+              matchPlayers.forEach(opp => {
+                if (opp.team !== p.team && opp.pos !== "GK") {
+                  const d = Math.sqrt((p.x - opp.x)**2 + (p.y - opp.y)**2);
+                  if (d < minOppDist) {
+                    minOppDist = d;
+                    markTarget = opp;
+                  }
+                }
+              });
+
+              if (markTarget && minOppDist < 180) {
+                const goalX = (p.team === "user") ? 50 : canvas.width - 50;
+                baseTargetX = markTarget.x * 0.75 + goalX * 0.25;
+                baseTargetY = markTarget.y * 0.75 + (canvas.height/2) * 0.25;
+              }
+
+              // 상대 공일 때 한곳으로 뭉치지 않도록 볼 주위 110px 대형 유지 (밀어내기 존 수비)
+              const ballDist = Math.sqrt((baseTargetX - ball.x)**2 + (baseTargetY - ball.y)**2);
+              if (ballDist < 110) {
+                const angle = Math.atan2(baseTargetY - ball.y, baseTargetX - ball.x);
+                targetX = ball.x + Math.cos(angle) * 110;
+                targetY = ball.y + Math.sin(angle) * 110;
+              } else {
+                targetX = baseTargetX;
+                targetY = baseTargetY;
+              }
             }
           }
         }
@@ -1149,10 +1210,24 @@
         const owner = ball.owner;
         const speedFactor = 0.92;
         
-        // 상대편 소유자는 유저 골대(x = 50)를 향해 전진
-        owner.vx = -owner.speed * speedFactor;
-        // 약간의 Y축 보정으로 골대 조향
-        owner.vy = Math.sign(canvas.height / 2 - owner.y) * owner.speed * 0.18;
+        let baseVx = -owner.speed * speedFactor;
+        let baseVy = Math.sign(canvas.height / 2 - owner.y) * owner.speed * 0.18;
+        
+        // 유저 수비수가 바로 앞에서 마크할 시 sidestep 드리블 페인팅 돌파
+        let dodgeY = 0;
+        matchPlayers.forEach(p => {
+          if (p.team === "user") {
+            const dx = p.x - owner.x;
+            const dy = p.y - owner.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dx < 0 && dist < 95 && Math.abs(dy) < 65) {
+              dodgeY += Math.sign(owner.y - p.y || 1) * owner.speed * 0.82;
+            }
+          }
+        });
+
+        owner.vx = baseVx;
+        owner.vy = baseVy + dodgeY;
         owner.x += owner.vx;
         owner.y += owner.vy;
 
@@ -1237,8 +1312,8 @@
             addFloatText("OPPONENT SHOOT! ⚽", ball.x, ball.y - 20, "#ff3333");
           }
         } 
-        // 압박 당할 때 융통성 있는 스마트 패스 (5% 확률)
-        else if (userPressing && Math.random() < 0.05) {
+        // 압박 당할 때 융통성 있는 스마트 패스 및 티키타카(원터치 패스) 연계
+        else if (userPressing && ((owner.possessionTime > 0.04 && owner.possessionTime < 0.22) || Math.random() < 0.065)) {
           let bestTeammate = null;
           let minGoalDist = Infinity;
           
@@ -1273,6 +1348,7 @@
 
       // 4. 공 소유 물리 및 바운스 처리
       if (ball.owner) {
+        ball.owner.possessionTime = (ball.owner.possessionTime || 0) + dt;
         ball.x = ball.owner.x + (ball.owner.team === "user" ? 16 : -16);
         ball.y = ball.owner.y;
         ball.vx = ball.owner.vx;
@@ -1367,6 +1443,9 @@
           });
 
           if (closestPlayer) {
+            if (ball.owner !== closestPlayer) {
+              closestPlayer.possessionTime = 0;
+            }
             ball.owner = closestPlayer;
             ball.vx = 0; ball.vy = 0; ball.z = 0; ball.vz_air = 0;
             ball.curveForce = 0;
@@ -1583,6 +1662,16 @@
         }
 
         drawCharacter(p.x, p.y, bodyColor, textColor, label);
+
+        // 오프더볼 침투 런 표시기
+        if (p.isMakingRun && p.team === "user" && !isControlled) {
+          ctx.save();
+          ctx.fillStyle = "#00FF66";
+          ctx.font = "bold 9px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("침투 RUN", p.x, p.y - 20);
+          ctx.restore();
+        }
 
         // 공 소유 만료 시간 막대 게이지 노출
         if (isControlled && ball.owner === p && playerPossessionTimer > 0) {
