@@ -196,7 +196,7 @@ st.markdown('<div class="header-title">2026 FIFA WORLD CUP</div>', unsafe_allow_
 st.markdown('<div class="header-subtitle">Streamlit 대시보드 & 2D 플레이어블 축구 시뮬레이션</div>', unsafe_allow_html=True)
 
 # 탭 메뉴 구성
-tab1, tab2 = st.tabs(["📊 실시간 FIFA 랭킹 & 라인업 시각화", "🏆 월드컵 2026 모드 플레이"])
+tab1, tab2 = st.tabs(["📊 실시간 FIFA 랭킹 & 라인업 시각화", "🏆 토너먼트 모드 플레이 (월드컵 & UCL)"])
 
 # ==========================================
 # 탭 1: FIFA 랭킹 & 라인업 시각화
@@ -1192,7 +1192,8 @@ with tab2:
                 if unplayed_count == 0:
                     # 결승전 종료 시
                     if cur_round == "결승":
-                        if st.button("🏆 결승 결과 발표 및 월드컵 폐막", type="primary", use_container_width=True):
+                        closing_label = "🏆 결승 결과 발표 및 월드컵 폐막" if st.session_state.tournament_mode == "worldcup" else "🏆 결승 결과 발표 및 대회 종료"
+                        if st.button(closing_label, type="primary", use_container_width=True):
                             st.session_state.tournament_step = "completed"
                             st.rerun()
                     else:
@@ -1240,12 +1241,19 @@ with tab2:
         
         # 화려한 챔피언 배너 및 모달 효과 연출용 카드
         st.markdown(f"""
-            <div style="text-align: center; margin: 2rem 0;">
-                <span style="font-size: 5rem;">👑</span>
-                <h1 style="color: #FFD700; font-size: 4rem; font-weight: 800; text-shadow: 0 0 20px rgba(255,215,0,0.5);">{champion_name}</h1>
-                <p style="font-size: 1.5rem; color: #475569;">{champion_prefix} 우승을 축하합니다!</p>
+            <div style="text-align: center; margin-top: 1.5rem;">
+                <h1 style="color: #FFD700; font-size: 3.5rem; font-weight: 800; text-shadow: 0 0 20px rgba(255,215,0,0.5);">{champion_name}</h1>
+                <p style="font-size: 1.4rem; color: #94A3B8; font-weight: 500;">{champion_prefix} 우승을 축하합니다!</p>
             </div>
         """, unsafe_allow_html=True)
+
+        # 실제 우승 트로피 이미지 연출
+        trophy_filename = "worldcup_trophy.png" if st.session_state.tournament_mode == "worldcup" else "ucl_trophy.png"
+        trophy_path = os.path.join("assets", trophy_filename)
+        if os.path.exists(trophy_path):
+            col_left, col_mid, col_right = st.columns([1.2, 1, 1.2])
+            with col_mid:
+                st.image(trophy_path, use_container_width=True, caption=f"{champion_name} 우승 기념 트로피")
         
         # 다시 시작 버튼
         btn_label = "🔄 새로운 월드컵 시뮬레이션 시작" if st.session_state.tournament_mode == "worldcup" else "🔄 새로운 챔피언스 리그 시뮬레이션 시작"
