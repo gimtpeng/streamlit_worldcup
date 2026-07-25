@@ -154,40 +154,69 @@
     function initPlayers() {
       matchPlayers = [];
       const isCL = (tournamentMode === "champions");
+      const W = canvas.width;
+      const H = canvas.height;
 
       if (isCL) {
-        // 11 vs 11 명단 구성
-        // User 팀 (홈 - 왼쪽에서 오른쪽으로 공격)
-        matchPlayers.push({ id: 0, team: "user", pos: "GK", name: "GK", number: 1, x: 50, y: 300, homeX: 50, homeY: 300, speed: goalkeeper.speed, radius: 14 });
-        matchPlayers.push({ id: 1, team: "user", pos: "DF", name: "LB", number: 3, x: 250, y: 120, homeX: 250, homeY: 120, speed: player.speed * 0.85, radius: 14 });
-        matchPlayers.push({ id: 2, team: "user", pos: "DF", name: "LCB", number: 4, x: 200, y: 220, homeX: 200, homeY: 220, speed: player.speed * 0.8, radius: 14 });
-        matchPlayers.push({ id: 3, team: "user", pos: "DF", name: "RCB", number: 5, x: 200, y: 380, homeX: 200, homeY: 380, speed: player.speed * 0.8, radius: 14 });
-        matchPlayers.push({ id: 4, team: "user", pos: "DF", name: "RB", number: 2, x: 250, y: 480, homeX: 250, homeY: 480, speed: player.speed * 0.85, radius: 14 });
-        matchPlayers.push({ id: 5, team: "user", pos: "MF", name: "LDM", number: 6, x: 420, y: 200, homeX: 420, homeY: 200, speed: player.speed * 0.9, radius: 14 });
-        matchPlayers.push({ id: 6, team: "user", pos: "MF", name: "RDM", number: 8, x: 420, y: 400, homeX: 420, homeY: 400, speed: player.speed * 0.9, radius: 14 });
-        matchPlayers.push({ id: 7, team: "user", pos: "MF", name: "AM", number: 10, x: 580, y: 300, homeX: 580, homeY: 300, speed: player.speed * 0.95, radius: 14 });
-        matchPlayers.push({ id: 8, team: "user", pos: "FW", name: "LW", number: 11, x: 720, y: 150, homeX: 720, homeY: 150, speed: player.speed, radius: 14 });
-        matchPlayers.push({ id: 9, team: "user", pos: "FW", name: "ST", number: 9, x: 750, y: 300, homeX: 750, homeY: 300, speed: player.speed, radius: 14 });
-        matchPlayers.push({ id: 10, team: "user", pos: "FW", name: "RW", number: 7, x: 720, y: 450, homeX: 720, homeY: 450, speed: player.speed, radius: 14 });
+        // 11 vs 11 명단 구성 (비율 배분으로 대형 구장 자동 밸런싱)
+        const userPositions = [
+          { pos: "GK", name: "GK", number: 1, x: 50, y: H / 2, speed: goalkeeper.speed },
+          { pos: "DF", name: "LB", number: 3, x: W * 0.25, y: H * 0.18, speed: player.speed * 0.85 },
+          { pos: "DF", name: "LCB", number: 4, x: W * 0.20, y: H * 0.36, speed: player.speed * 0.8 },
+          { pos: "DF", name: "RCB", number: 5, x: W * 0.20, y: H * 0.64, speed: player.speed * 0.8 },
+          { pos: "DF", name: "RB", number: 2, x: W * 0.25, y: H * 0.82, speed: player.speed * 0.85 },
+          { pos: "MF", name: "LDM", number: 6, x: W * 0.42, y: H * 0.30, speed: player.speed * 0.9 },
+          { pos: "MF", name: "RDM", number: 8, x: W * 0.42, y: H * 0.70, speed: player.speed * 0.9 },
+          { pos: "MF", name: "AM", number: 10, x: W * 0.58, y: H / 2, speed: player.speed * 0.95 },
+          { pos: "FW", name: "LW", number: 11, x: W * 0.72, y: H * 0.22, speed: player.speed },
+          { pos: "FW", name: "ST", number: 9, x: W * 0.75, y: H / 2, speed: player.speed },
+          { pos: "FW", name: "RW", number: 7, x: W * 0.72, y: H * 0.78, speed: player.speed }
+        ];
 
-        // Opponent 팀 (원정 - 오른쪽에서 왼쪽으로 공격)
-        matchPlayers.push({ id: 11, team: "opponent", pos: "GK", name: "GK", number: 1, x: 950, y: 300, homeX: 950, homeY: 300, speed: goalkeeper.speed, radius: 14 });
-        matchPlayers.push({ id: 12, team: "opponent", pos: "DF", name: "RB", number: 2, x: 750, y: 120, homeX: 750, homeY: 120, speed: defenders[0].speed, radius: 14 });
-        matchPlayers.push({ id: 13, team: "opponent", pos: "DF", name: "RCB", number: 4, x: 800, y: 220, homeX: 800, homeY: 220, speed: defenders[0].speed * 0.95, radius: 14 });
-        matchPlayers.push({ id: 14, team: "opponent", pos: "DF", name: "LCB", number: 5, x: 800, y: 380, homeX: 800, homeY: 380, speed: defenders[0].speed * 0.95, radius: 14 });
-        matchPlayers.push({ id: 15, team: "opponent", pos: "DF", name: "LB", number: 3, x: 750, y: 480, homeX: 750, homeY: 480, speed: defenders[0].speed, radius: 14 });
-        matchPlayers.push({ id: 16, team: "opponent", pos: "MF", name: "RDM", number: 6, x: 580, y: 200, homeX: 580, homeY: 200, speed: defenders[0].speed * 1.05, radius: 14 });
-        matchPlayers.push({ id: 17, team: "opponent", pos: "MF", name: "LDM", number: 8, x: 580, y: 400, homeX: 580, homeY: 400, speed: defenders[0].speed * 1.05, radius: 14 });
-        matchPlayers.push({ id: 18, team: "opponent", pos: "MF", name: "AM", number: 10, x: 420, y: 300, homeX: 420, homeY: 300, speed: defenders[0].speed * 1.1, radius: 14 });
-        matchPlayers.push({ id: 19, team: "opponent", pos: "FW", name: "RW", number: 7, x: 280, y: 150, homeX: 280, homeY: 150, speed: defenders[0].speed * 1.15, radius: 14 });
-        matchPlayers.push({ id: 20, team: "opponent", pos: "FW", name: "ST", number: 9, x: 250, y: 300, homeX: 250, homeY: 300, speed: defenders[0].speed * 1.2, radius: 14 });
-        matchPlayers.push({ id: 21, team: "opponent", pos: "FW", name: "LW", number: 11, x: 280, y: 450, homeX: 280, homeY: 450, speed: defenders[0].speed * 1.15, radius: 14 });
+        userPositions.forEach((pos, idx) => {
+          matchPlayers.push({
+            id: idx,
+            team: "user",
+            pos: pos.pos,
+            name: pos.name,
+            number: pos.number,
+            x: pos.x,
+            y: pos.y,
+            homeX: pos.x,
+            homeY: pos.y,
+            speed: pos.speed,
+            radius: 14
+          });
+        });
+
+        userPositions.forEach((pos, idx) => {
+          const oppX = W - pos.x;
+          const oppY = pos.y;
+          let oppSpeed = defenders[0].speed;
+          if (pos.pos === "GK") oppSpeed = goalkeeper.speed;
+          else if (pos.pos === "MF") oppSpeed = defenders[0].speed * 1.08;
+          else if (pos.pos === "FW") oppSpeed = defenders[0].speed * 1.18;
+
+          matchPlayers.push({
+            id: idx + 11,
+            team: "opponent",
+            pos: pos.pos,
+            name: pos.name,
+            number: pos.number,
+            x: oppX,
+            y: oppY,
+            homeX: oppX,
+            homeY: oppY,
+            speed: oppSpeed,
+            radius: 14
+          });
+        });
       } else {
-        // 1 vs 3 (월드컵 모드 기존 유지)
-        matchPlayers.push({ id: 0, team: "user", pos: "FW", name: userTeam.substring(0, 2), number: 9, x: 200, y: 250, homeX: 200, homeY: 250, speed: player.speed, radius: 14 });
-        matchPlayers.push({ id: 1, team: "opponent", pos: "DF", name: "DF", number: 2, x: 520, y: 150, homeX: 520, homeY: 150, speed: defenders[0].speed, radius: 14 });
-        matchPlayers.push({ id: 2, team: "opponent", pos: "DF", name: "DF", number: 3, x: 520, y: 350, homeX: 520, homeY: 350, speed: defenders[0].speed, radius: 14 });
-        matchPlayers.push({ id: 3, team: "opponent", pos: "GK", name: "GK", number: 1, x: 765, y: 250, homeX: 765, homeY: 250, speed: goalkeeper.speed, radius: 14 });
+        // 1 vs 3 (월드컵 모드 기존 유지, 비율 배분)
+        matchPlayers.push({ id: 0, team: "user", pos: "FW", name: userTeam.substring(0, 2), number: 9, x: W * 0.25, y: H / 2, homeX: W * 0.25, homeY: H / 2, speed: player.speed, radius: 14 });
+        matchPlayers.push({ id: 1, team: "opponent", pos: "DF", name: "DF", number: 2, x: W * 0.65, y: H * 0.3, homeX: W * 0.65, homeY: H * 0.3, speed: defenders[0].speed, radius: 14 });
+        matchPlayers.push({ id: 2, team: "opponent", pos: "DF", name: "DF", number: 3, x: W * 0.65, y: H * 0.7, homeX: W * 0.65, homeY: H * 0.7, speed: defenders[0].speed, radius: 14 });
+        matchPlayers.push({ id: 3, team: "opponent", pos: "GK", name: "GK", number: 1, x: W - 50, y: H / 2, homeX: W - 50, homeY: H / 2, speed: goalkeeper.speed, radius: 14 });
       }
 
       matchPlayers.forEach(p => {
@@ -218,12 +247,12 @@
       goalkeeper.speed = Math.max(2.2, Math.min(3.5, 2.8 + (opponentPoints - 1550) / 300));
       
       const isCL = (tournamentMode === "champions");
-      canvas.width = isCL ? 1000 : 800;
-      canvas.height = isCL ? 600 : 500;
+      canvas.width = isCL ? 1200 : 900;
+      canvas.height = isCL ? 750 : 550;
 
       field.width = canvas.width;
       field.height = canvas.height;
-      field.goalWidth = isCL ? 140 : 120;
+      field.goalWidth = isCL ? 150 : 130;
       field.goalY = (canvas.height - field.goalWidth) / 2;
 
       initPlayers();
@@ -940,9 +969,13 @@
           const gkDy = targetY - p.y;
           const gkDist = Math.sqrt(gkDx*gkDx + gkDy*gkDy);
 
-          if (gkDist > 4) {
+          if (gkDist > 20) {
             p.vx = (gkDx / gkDist) * p.speed;
             p.vy = (gkDy / gkDist) * p.speed;
+          } else if (gkDist > 1.5) {
+            const factor = gkDist / 20;
+            p.vx = (gkDx / gkDist) * p.speed * factor;
+            p.vy = (gkDy / gkDist) * p.speed * factor;
           } else {
             p.vx = 0; p.vy = 0;
           }
@@ -1046,9 +1079,13 @@
         const runDy = targetY - p.y;
         const runDist = Math.sqrt(runDx * runDx + runDy * runDy);
 
-        if (runDist > 5) {
+        if (runDist > 20) {
           p.vx = (runDx / runDist) * p.speed;
           p.vy = (runDy / runDist) * p.speed;
+        } else if (runDist > 1.5) {
+          const factor = runDist / 20;
+          p.vx = (runDx / runDist) * p.speed * factor;
+          p.vy = (runDy / runDist) * p.speed * factor;
         } else {
           p.vx = 0; p.vy = 0;
         }
@@ -1090,7 +1127,7 @@
             const dy = p1.y - p2.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
             if (dist < 42 && dist > 0) {
-              const pushForce = (42 - dist) * 0.16;
+              const pushForce = (42 - dist) * 0.08;
               const pushX = (dx / dist) * pushForce;
               const pushY = (dy / dist) * pushForce;
               
@@ -1107,31 +1144,108 @@
         }
       }
 
-      // 3. 상대편 AI 빌드업 및 슈팅 로직
+      // 3. 상대편 AI 빌드업 및 슈팅/크로스/패스 로직
       if (ball.owner && ball.owner.team === "opponent") {
-        // 상대편 소유자는 유저 골대를 향해 전진
-        ball.owner.vx = -ball.owner.speed * 0.9;
-        ball.owner.vy = Math.sign(canvas.height / 2 - ball.owner.y) * ball.owner.speed * 0.2;
-        ball.owner.x += ball.owner.vx;
-        ball.owner.y += ball.owner.vy;
+        const owner = ball.owner;
+        const speedFactor = 0.92;
+        
+        // 상대편 소유자는 유저 골대(x = 50)를 향해 전진
+        owner.vx = -owner.speed * speedFactor;
+        // 약간의 Y축 보정으로 골대 조향
+        owner.vy = Math.sign(canvas.height / 2 - owner.y) * owner.speed * 0.18;
+        owner.x += owner.vx;
+        owner.y += owner.vy;
 
+        // 근처 유저 압박 체크
         let userPressing = false;
+        let distToPresser = Infinity;
         matchPlayers.forEach(p => {
           if (p.team === "user") {
-            const d = Math.sqrt((ball.owner.x - p.x)**2 + (ball.owner.y - p.y)**2);
-            if (d < 70) userPressing = true;
+            const d = Math.sqrt((owner.x - p.x)**2 + (owner.y - p.y)**2);
+            if (d < 85) {
+              userPressing = true;
+              if (d < distToPresser) distToPresser = d;
+            }
           }
         });
 
-        // 압박이 거세면 전방에 있는 동료에게 2% 확률로 패스 연결
-        if (userPressing && Math.random() < 0.025) {
+        // 상대 AI 의 크로스 존 돌입 및 크로스 판정 (좌우 윙 구역)
+        // 골대 근처 x < 380 이면서 Y축 터치라인 부근 (y < 160 또는 y > canvas.height - 160)
+        const inCrossZone = (owner.x < 380 && owner.x > 100 && (owner.y < 160 || owner.y > canvas.height - 160));
+        
+        if (inCrossZone && Math.random() < 0.05) {
+          // 크로스 타겟 찾기 (박스 안쪽의 동료 FW/MF)
+          let crossTarget = null;
+          matchPlayers.forEach(p => {
+            if (p.team === "opponent" && p !== owner && p.pos !== "GK") {
+              // 페널티 에어리어 부근 골대 앞 공간
+              if (p.x < 240 && p.x > 50 && p.y > 180 && p.y < canvas.height - 180) {
+                crossTarget = p;
+              }
+            }
+          });
+
+          if (crossTarget) {
+            ball.owner = null;
+            passLockTimer = 0.6;
+            const dx = crossTarget.x - ball.x;
+            const dy = crossTarget.y - ball.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            ball.vx = (dx / dist) * 11.2;
+            ball.vy = (dy / dist) * 11.2;
+            ball.z = 1.0;
+            ball.vz_air = 6.8; // 띄우는 크로스 공중 물리 적용
+            ball.curveForce = 0;
+            addFloatText("OPPONENT CROSS ⬆️", ball.x, ball.y - 20, "#ff3366");
+          }
+        } 
+        // 슛 구역 진입 시 슛 시도 (x < 260 && Y축 골대 근처)
+        else if (owner.x < 260 && Math.random() < 0.07) {
+          ball.owner = null;
+          passLockTimer = 0.45;
+          let targetY = field.goalY + Math.random() * field.goalWidth;
+          const dx = 20 - ball.x;
+          const dy = targetY - ball.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          
+          const shotRand = Math.random();
+          if (shotRand < 0.28) {
+            // 🚀 파워 슛
+            screenShake = 16;
+            ball.vx = (dx / dist) * 15.5;
+            ball.vy = (dy / dist) * 15.5;
+            ball.z = 0.1;
+            ball.vz_air = 1.2;
+            ball.curveForce = 0;
+            addFloatText("🚀 OPP POWER SHOT!!", ball.x, ball.y - 20, "#ffea00");
+          } else if (shotRand < 0.5) {
+            // 💫 감아차기 (피네스 슛)
+            ball.vx = (dx / dist) * 10.8;
+            ball.vy = (dy / dist) * 10.8;
+            ball.z = 0;
+            ball.vz_air = 0;
+            ball.curveForce = (targetY > canvas.height / 2) ? -0.16 : 0.16;
+            addFloatText("💫 FINESSE SHOT", ball.x, ball.y - 20, "#ff00e5");
+          } else {
+            // 일반 슛
+            ball.vx = (dx / dist) * 12.0;
+            ball.vy = (dy / dist) * 12.0;
+            ball.z = 0;
+            ball.vz_air = 0;
+            ball.curveForce = 0;
+            addFloatText("OPPONENT SHOOT! ⚽", ball.x, ball.y - 20, "#ff3333");
+          }
+        } 
+        // 압박 당할 때 융통성 있는 스마트 패스 (5% 확률)
+        else if (userPressing && Math.random() < 0.05) {
           let bestTeammate = null;
           let minGoalDist = Infinity;
           
           matchPlayers.forEach(p => {
-            if (p.team === "opponent" && p !== ball.owner && p.pos !== "GK") {
-              if (p.x < ball.owner.x + 80) { // 자신보다 앞이나 근처 공간
-                const dGoal = Math.sqrt((p.x - 50)**2 + (p.y - 300)**2);
+            if (p.team === "opponent" && p !== owner && p.pos !== "GK") {
+              if (p.x < owner.x + 80) { // 전방 동료
+                const dGoal = Math.sqrt((p.x - 20)**2 + (p.y - canvas.height/2)**2);
                 if (dGoal < minGoalDist) {
                   minGoalDist = dGoal;
                   bestTeammate = p;
@@ -1146,27 +1260,14 @@
             const dx = bestTeammate.x - ball.x;
             const dy = bestTeammate.y - ball.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
+            
             ball.vx = (dx / dist) * 10.5;
             ball.vy = (dy / dist) * 10.5;
             ball.z = 0;
             ball.vz_air = 0;
             ball.curveForce = 0;
-            addFloatText("OPPONENT PASS", ball.x, ball.y - 20, "#ff7676");
+            addFloatText("OPPONENT PASS ➡️", ball.x, ball.y - 20, "#ff7676");
           }
-        } else if (ball.owner.x < 220 && Math.random() < 0.06) {
-          // 유저 진영 접근 시 지체없이 강슛
-          ball.owner = null;
-          passLockTimer = 0.4;
-          let targetY = field.goalY + Math.random() * field.goalWidth;
-          const dx = 20 - ball.x;
-          const dy = targetY - ball.y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          ball.vx = (dx / dist) * 11.5;
-          ball.vy = (dy / dist) * 11.5;
-          ball.z = 0;
-          ball.vz_air = 0;
-          ball.curveForce = 0;
-          addFloatText("OPPONENT SHOOT!", ball.x, ball.y - 20, "#ff3333");
         }
       }
 
