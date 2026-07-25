@@ -1,0 +1,1971 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>월드컵 2D 감독 모드 시뮬레이터</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@300;400;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 15px;
+      background-color: #0f172a;
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+
+    /* 전체 그리드 레이아웃 */
+    .director-container {
+      display: grid;
+      grid-template-columns: 320px 1fr 340px;
+      gap: 15px;
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 1024px) {
+      .director-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 공통 글래스모피즘 카드 스타일 */
+    .panel {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-title {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 1.25rem;
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 8px;
+    }
+
+    /* 전술 설정 스타일 */
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: #94a3b8;
+    }
+
+    select, input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+      transition: all 0.3s ease;
+    }
+
+    select:focus, input:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+    }
+
+    /* 전술 슬라이더 디자인 */
+    .slider-container {
+      margin-top: 10px;
+    }
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: #cbd5e1;
+    }
+    .tactical-slider {
+      width: 100%;
+      accent-color: #38bdf8;
+      margin: 6px 0;
+    }
+
+    /* 포메이션 라인업 미니 피치 */
+    .mini-pitch {
+      width: 100%;
+      height: 180px;
+      background-color: #1e3a1e;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      position: relative;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    .pitch-line-center {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .pitch-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50px;
+      height: 50px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+    }
+    .mini-player-node {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ef4444;
+      border: 1.5px solid #ffffff;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+    }
+    .mini-player-node::after {
+      content: attr(data-pos);
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 8px;
+      white-space: nowrap;
+      background: rgba(15, 23, 42, 0.85);
+      padding: 1px 3px;
+      border-radius: 3px;
+      color: #fff;
+      border: 0.5px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* 중앙 경기 중계 및 캔버스 */
+    .simulation-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 10px 15px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin-bottom: 12px;
+    }
+
+    .scoreboard {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .scoreboard-team {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .scoreboard-score {
+      font-family: 'Outfit', monospace;
+      font-size: 1.6rem;
+      font-weight: 800;
+      background: #0f172a;
+      padding: 3px 12px;
+      border-radius: 8px;
+      color: #facc15;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .timer-badge {
+      background: #ef4444;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-family: monospace;
+    }
+
+    .canvas-container {
+      position: relative;
+      background-color: #1b5e20;
+      border-radius: 12px;
+      border: 3px solid rgba(255, 255, 255, 0.15);
+      overflow: hidden;
+      aspect-ratio: 16/10;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+      color: white;
+    }
+    .btn-primary:hover {
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+      transform: translateY(-1px);
+    }
+    .btn-primary:disabled {
+      background: #475569;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* 우측 중계 로그 영역 */
+    .log-container {
+      flex: 1;
+      height: 350px;
+      overflow-y: auto;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 10px;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .log-item {
+      padding: 4px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      margin-bottom: 4px;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .log-time {
+      color: #38bdf8;
+      font-weight: 700;
+      margin-right: 6px;
+      font-family: monospace;
+    }
+    .log-event-goal {
+      color: #facc15;
+      font-weight: bold;
+      background: rgba(250, 204, 21, 0.1);
+      border-radius: 4px;
+      padding: 2px 4px;
+    }
+    .log-event-card {
+      color: #f87171;
+      font-weight: bold;
+    }
+
+    /* 하단 AI 분석 패널 */
+    .ai-panel {
+      grid-column: 1 / -1;
+      margin-top: 10px;
+    }
+
+    .ai-rating-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    @media (max-width: 768px) {
+      .ai-rating-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .rating-list {
+      background: rgba(15, 23, 42, 0.6);
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .rating-header {
+      font-weight: 700;
+      color: #38bdf8;
+      margin-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 5px;
+    }
+
+    .rating-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 6px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .rating-row:nth-child(even) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .rating-score {
+      font-weight: bold;
+      color: #10b981;
+    }
+    .rating-comment {
+      color: #94a3b8;
+      font-size: 0.75rem;
+      margin-top: 2px;
+      padding-left: 10px;
+    }
+
+    .rating-summary {
+      background: rgba(56, 189, 248, 0.08);
+      border-left: 4px solid #38bdf8;
+      padding: 12px;
+      border-radius: 4px 12px 12px 4px;
+      margin-top: 15px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .api-key-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    /* 애니메이션 */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="director-container">
+    
+    <!-- 1. 좌측 영역: 팀 전술 및 라인업 설정 -->
+    <div class="panel">
+      <div class="panel-title">📋 팀 설정 & 전술</div>
+      
+      <div class="form-group">
+        <label for="team-type">팀 유형 선택</label>
+        <select id="team-type" onchange="loadTeams()">
+          <option value="nations">🌍 월드컵 출전국</option>
+          <option value="clubs">⚽ 유럽 클럽팀</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="team-selector">내 팀 선택</label>
+        <select id="team-selector" onchange="changeHomeTeam()">
+          <!-- 로드되는 항목 -->
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="home-formation">내 팀 포메이션</label>
+        <select id="home-formation" onchange="changeHomeFormation()">
+          <option value="4-3-3">4-3-3</option>
+          <option value="4-4-2">4-4-2</option>
+          <option value="3-5-2">3-5-2</option>
+          <option value="5-3-2">5-3-2</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="opponent-selector">상대 팀 선택</label>
+        <select id="opponent-selector" onchange="changeAwayTeam()">
+          <!-- 로드되는 항목 -->
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="away-formation">상대 팀 포메이션</label>
+        <select id="away-formation" onchange="changeAwayFormation()">
+          <option value="4-3-3">4-3-3</option>
+          <option value="4-4-2">4-4-2</option>
+          <option value="3-5-2">3-5-2</option>
+          <option value="5-3-2">5-3-2</option>
+        </select>
+      </div>
+
+      <!-- 전술 슬라이더들 -->
+      <div class="slider-container">
+        <div class="slider-header">
+          <span>⚡ 전개 속도</span>
+          <span id="speed-val">50</span>
+        </div>
+        <input type="range" class="tactical-slider" id="speed-slider" min="1" max="100" value="50" oninput="document.getElementById('speed-val').innerText = this.value">
+      </div>
+
+      <div class="slider-container">
+        <div class="slider-header">
+          <span>📐 패스 거리</span>
+          <span id="pass-val">50</span>
+        </div>
+        <input type="range" class="tactical-slider" id="pass-slider" min="1" max="100" value="50" oninput="document.getElementById('pass-val').innerText = this.value">
+      </div>
+
+      <div class="slider-container">
+        <div class="slider-header">
+          <span>🛡️ 압박 수위</span>
+          <span id="pressure-val">50</span>
+        </div>
+        <input type="range" class="tactical-slider" id="pressure-slider" min="1" max="100" value="50" oninput="document.getElementById('pressure-val').innerText = this.value">
+      </div>
+
+      <!-- 포메이션 라인업 미니 뷰어 -->
+      <div style="margin-top: 15px;">
+        <label>🏃 선발 포메이션 시각화</label>
+        <div class="mini-pitch" id="mini-pitch-view">
+          <div class="pitch-line-center"></div>
+          <div class="pitch-circle"></div>
+          <!-- 선수들이 노드로 표시됨 -->
+        </div>
+      </div>
+
+      <!-- 선수 스쿼드 명단 및 OVR 표시 영역 -->
+      <div style="margin-top: 12px; display: flex; flex-direction: column;">
+        <label>📊 스쿼드 명단 및 능력치 (OVR)</label>
+        <div id="squad-list-container" style="background: rgba(15, 23, 42, 0.6); padding: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-y: auto; max-height: 180px; font-size: 0.8rem; line-height: 1.5;">
+          <!-- 동적 렌더링 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 중앙 영역: 2D 경기 중계 뷰어 / Canvas -->
+    <div class="panel">
+      <div class="panel-title">🎮 2D 매치 리얼타임 중계</div>
+      
+      <!-- 스코어보드 헤더 -->
+      <div class="simulation-header">
+        <div class="scoreboard">
+          <span class="scoreboard-team" id="sb-home-name">대한민국</span>
+          <span class="scoreboard-score" id="sb-score">0 - 0</span>
+          <span class="scoreboard-team" id="sb-away-name">브라질</span>
+        </div>
+        <span class="timer-badge" id="sb-time">00:00</span>
+      </div>
+
+      <!-- 2D 경기 중계 캔버스 -->
+      <div class="canvas-container">
+        <canvas id="match-canvas" width="640" height="400"></canvas>
+      </div>
+
+      <!-- 조작 컨트롤 버튼 -->
+      <div class="controls-row">
+        <button class="btn btn-primary" id="btn-start" onclick="startSim()">⚡ 경기 시작</button>
+        <button class="btn btn-secondary" id="btn-pause" onclick="pauseSim()" disabled>⏸️ 일시정지</button>
+        <button class="btn btn-secondary" onclick="resetSim()">🔄 초기화</button>
+      </div>
+    </div>
+
+    <!-- 3. 우측 영역: 실시간 텍스트 중계 및 로그 -->
+    <div class="panel">
+      <div class="panel-title">✍️ 실시간 문자 중계</div>
+      <div class="log-container" id="log-list">
+        <div class="log-item"><span class="log-time">[00:00]</span> 양 팀 선수단이 경기장에 입장하여 킥오프를 준비 중입니다.</div>
+      </div>
+    </div>
+
+    <!-- 4. 하단 영역: Gemini 평점 채점기 -->
+    <div class="panel ai-panel">
+      <div class="panel-title">🤖 Gemini AI 선수 평점 분석</div>
+      
+      <div class="api-key-row">
+        <div style="flex: 1;">
+          <label for="gemini-key">Gemini API Key</label>
+          <input type="password" id="gemini-key" placeholder="AI 평점 기능을 활성화하려면 API Key를 입력하세요" onchange="saveApiKey(this.value)">
+        </div>
+        <button class="btn btn-primary" id="btn-ai-rate" onclick="getAiRatings()" style="margin-top: 18px; max-width: 200px;" disabled>📊 AI 평점 리포트 생성</button>
+      </div>
+
+      <!-- AI 채점 결과 영역 -->
+      <div id="ai-results-sec" style="display: none;">
+        <div class="ai-rating-grid" id="ai-rating-container">
+          <!-- AI 평점 리스트 로드 -->
+        </div>
+        <div class="rating-summary" id="ai-match-summary">
+          <!-- AI 한 줄 경기 총평 -->
+        </div>
+      </div>
+      <div id="ai-loading" style="display: none; text-align: center; padding: 20px; color: #38bdf8;">
+        🔮 Gemini가 경기 로그를 기반으로 양 팀 22명 선수단의 전술 평점을 매기는 중입니다...
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // 팀 및 라인업 데이터셋
+    const teamsData = {
+      nations: {
+        KOR: {
+          name: "대한민국",
+          color: "#ef4444",
+          textColor: "#ffffff",
+          lineup: [
+            { name: "조현우", pos: "GK", stats: { speed: 60, passing: 65, defense: 85 } },
+            { name: "설영우", pos: "DF", stats: { speed: 80, passing: 72, defense: 75 } },
+            { name: "김민재", pos: "DF", stats: { speed: 88, passing: 75, defense: 92 } },
+            { name: "김영권", pos: "DF", stats: { speed: 68, passing: 78, defense: 80 } },
+            { name: "김진수", pos: "DF", stats: { speed: 74, passing: 70, defense: 76 } },
+            { name: "황인범", pos: "MF", stats: { speed: 76, passing: 86, defense: 74 } },
+            { name: "이재성", pos: "MF", stats: { speed: 75, passing: 80, defense: 78 } },
+            { name: "이강인", pos: "MF", stats: { speed: 78, passing: 89, defense: 50 } },
+            { name: "황희찬", pos: "FW", stats: { speed: 89, passing: 72, defense: 42 } },
+            { name: "조규성", pos: "FW", stats: { speed: 72, passing: 65, defense: 45 } },
+            { name: "손흥민", pos: "FW", stats: { speed: 91, passing: 82, defense: 38 } }
+          ]
+        },
+        BRA: {
+          name: "브라질",
+          color: "#facc15",
+          textColor: "#000000",
+          lineup: [
+            { name: "알리송", pos: "GK", stats: { speed: 62, passing: 75, defense: 90 } },
+            { name: "다닐루", pos: "DF", stats: { speed: 76, passing: 74, defense: 80 } },
+            { name: "마르키뉴스", pos: "DF", stats: { speed: 80, passing: 76, defense: 88 } },
+            { name: "에데르 밀리탕", pos: "DF", stats: { speed: 83, passing: 70, defense: 86 } },
+            { name: "완데르송", pos: "DF", stats: { speed: 82, passing: 72, defense: 76 } },
+            { name: "기마랑이스", pos: "MF", stats: { speed: 74, passing: 84, defense: 80 } },
+            { name: "루카스 파케타", pos: "MF", stats: { speed: 75, passing: 83, defense: 70 } },
+            { name: "네이마르", pos: "MF", stats: { speed: 82, passing: 90, defense: 35 } },
+            { name: "호드리구", pos: "FW", stats: { speed: 88, passing: 80, defense: 40 } },
+            { name: "히샤를리송", pos: "FW", stats: { speed: 81, passing: 68, defense: 46 } },
+            { name: "비니시우스 Jr.", pos: "FW", stats: { speed: 95, passing: 78, defense: 36 } }
+          ]
+        },
+        ARG: {
+          name: "아르헨티나",
+          color: "#7dd3fc",
+          textColor: "#000000",
+          lineup: [
+            { name: "E. 마르티네스", pos: "GK", stats: { speed: 58, passing: 70, defense: 89 } },
+            { name: "몰리나", pos: "DF", stats: { speed: 84, passing: 73, defense: 78 } },
+            { name: "로메로", pos: "DF", stats: { speed: 82, passing: 68, defense: 90 } },
+            { name: "오타멘디", pos: "DF", stats: { speed: 64, passing: 72, defense: 82 } },
+            { name: "탈리아피코", pos: "DF", stats: { speed: 75, passing: 70, defense: 80 } },
+            { name: "엔조 페르난데스", pos: "MF", stats: { speed: 73, passing: 85, defense: 78 } },
+            { name: "맥 알리스터", pos: "MF", stats: { speed: 72, passing: 84, defense: 76 } },
+            { name: "데 파울", pos: "MF", stats: { speed: 79, passing: 80, defense: 82 } },
+            { name: "디 마리아", pos: "FW", stats: { speed: 83, passing: 84, defense: 40 } },
+            { name: "훌리안 알바레스", pos: "FW", stats: { speed: 86, passing: 75, defense: 50 } },
+            { name: "리오넬 메시", pos: "FW", stats: { speed: 80, passing: 94, defense: 32 } }
+          ]
+        },
+        FRA: {
+          name: "프랑스",
+          color: "#1e3a8a",
+          textColor: "#ffffff",
+          lineup: [
+            { name: "메냥", pos: "GK", stats: { speed: 64, passing: 72, defense: 87 } },
+            { name: "쿤데", pos: "DF", stats: { speed: 78, passing: 74, defense: 84 } },
+            { name: "살리바", pos: "DF", stats: { speed: 83, passing: 78, defense: 89 } },
+            { name: "우파메카노", pos: "DF", stats: { speed: 84, passing: 70, defense: 83 } },
+            { name: "테오 에르난데스", pos: "DF", stats: { speed: 92, passing: 76, defense: 79 } },
+            { name: "추아메니", pos: "MF", stats: { speed: 73, passing: 81, defense: 85 } },
+            { name: "라비오", pos: "MF", stats: { speed: 75, passing: 78, defense: 80 } },
+            { name: "그리즈만", pos: "MF", stats: { speed: 79, passing: 87, defense: 65 } },
+            { name: "뎀벨레", pos: "FW", stats: { speed: 93, passing: 79, defense: 30 } },
+            { name: "지루", pos: "FW", stats: { speed: 60, passing: 70, defense: 42 } },
+            { name: "음바페", pos: "FW", stats: { speed: 97, passing: 80, defense: 35 } }
+          ]
+        }
+      },
+      clubs: {
+        RMA: {
+          name: "레알 마드리드",
+          color: "#ffffff",
+          textColor: "#1e293b",
+          lineup: [
+            { name: "쿠르투아", pos: "GK", stats: { speed: 52, passing: 70, defense: 91 } },
+            { name: "카르바할", pos: "DF", stats: { speed: 79, passing: 78, defense: 84 } },
+            { name: "뤼디거", pos: "DF", stats: { speed: 82, passing: 71, defense: 89 } },
+            { name: "밀리탕", pos: "DF", stats: { speed: 83, passing: 70, defense: 85 } },
+            { name: "멘디", pos: "DF", stats: { speed: 84, passing: 68, defense: 82 } },
+            { name: "발베르데", pos: "MF", stats: { speed: 88, passing: 83, defense: 80 } },
+            { name: "츄아메니", pos: "MF", stats: { speed: 73, passing: 81, defense: 84 } },
+            { name: "벨링엄", pos: "MF", stats: { speed: 80, passing: 86, defense: 80 } },
+            { name: "호드리구", pos: "FW", stats: { speed: 89, passing: 80, defense: 40 } },
+            { name: "음바페", pos: "FW", stats: { speed: 97, passing: 80, defense: 35 } },
+            { name: "비니시우스 Jr.", pos: "FW", stats: { speed: 95, passing: 78, defense: 36 } }
+          ]
+        },
+        MCI: {
+          name: "맨체스터 시티",
+          color: "#38bdf8",
+          textColor: "#1e293b",
+          lineup: [
+            { name: "에데르송", pos: "GK", stats: { speed: 64, passing: 91, defense: 85 } },
+            { name: "워커", pos: "DF", stats: { speed: 90, passing: 73, defense: 82 } },
+            { name: "디아스", pos: "DF", stats: { speed: 68, passing: 75, defense: 89 } },
+            { name: "스톤스", pos: "DF", stats: { speed: 72, passing: 82, defense: 84 } },
+            { name: "그바르디올", pos: "DF", stats: { speed: 80, passing: 79, defense: 83 } },
+            { name: "로드리", pos: "MF", stats: { speed: 74, passing: 89, defense: 91 } },
+            { name: "베르나르두 실바", pos: "MF", stats: { speed: 77, passing: 88, defense: 75 } },
+            { name: "더 브라위너", pos: "MF", stats: { speed: 74, passing: 94, defense: 60 } },
+            { name: "포든", pos: "FW", stats: { speed: 86, passing: 85, defense: 48 } },
+            { name: "홀란드", pos: "FW", stats: { speed: 89, passing: 65, defense: 40 } },
+            { name: "그릴리쉬", pos: "FW", stats: { speed: 78, passing: 82, defense: 45 } }
+          ]
+        },
+        FCB: {
+          name: "바르셀로나",
+          color: "#991b1b",
+          textColor: "#ffffff",
+          lineup: [
+            { name: "테어 슈테겐", pos: "GK", stats: { speed: 56, passing: 85, defense: 86 } },
+            { name: "쿤데", pos: "DF", stats: { speed: 78, passing: 74, defense: 84 } },
+            { name: "아라우호", pos: "DF", stats: { speed: 82, passing: 65, defense: 88 } },
+            { name: "쿠바르시", pos: "DF", stats: { speed: 70, passing: 84, defense: 80 } },
+            { name: "발데", pos: "DF", stats: { speed: 90, passing: 70, defense: 75 } },
+            { name: "카사도", pos: "MF", stats: { speed: 75, passing: 80, defense: 78 } },
+            { name: "데 용", pos: "MF", stats: { speed: 78, passing: 86, defense: 76 } },
+            { name: "페드리", pos: "MF", stats: { speed: 76, passing: 89, defense: 68 } },
+            { name: "라민 야말", pos: "FW", stats: { speed: 89, passing: 84, defense: 40 } },
+            { name: "레반도프스키", pos: "FW", stats: { speed: 75, passing: 70, defense: 42 } },
+            { name: "하피냐", pos: "FW", stats: { speed: 87, passing: 82, defense: 55 } }
+          ]
+        },
+        FCB_GER: {
+          name: "바이에른 뮌헨",
+          color: "#dc2626",
+          textColor: "#ffffff",
+          lineup: [
+            { name: "노이어", pos: "GK", stats: { speed: 58, passing: 84, defense: 87 } },
+            { name: "보이", pos: "DF", stats: { speed: 84, passing: 70, defense: 76 } },
+            { name: "우파메카노", pos: "DF", stats: { speed: 84, passing: 70, defense: 82 } },
+            { name: "김민재", pos: "DF", stats: { speed: 88, passing: 75, defense: 91 } },
+            { name: "데이비스", pos: "DF", stats: { speed: 95, passing: 72, defense: 78 } },
+            { name: "키미히", pos: "MF", stats: { speed: 72, passing: 89, defense: 82 } },
+            { name: "고레츠카", pos: "MF", stats: { speed: 78, passing: 80, defense: 80 } },
+            { name: "무시아라", pos: "MF", stats: { speed: 84, passing: 84, defense: 50 } },
+            { name: "자네", pos: "FW", stats: { speed: 91, passing: 78, defense: 38 } },
+            { name: "해리 케인", pos: "FW", stats: { speed: 70, passing: 84, defense: 45 } },
+            { name: "그나브리", pos: "FW", stats: { speed: 83, passing: 76, defense: 42 } }
+          ]
+        }
+      }
+    };
+
+    // 포메이션 좌표 정의 (팀 진영 대비 비율 x: 0~1.0, y: 0~1.0)
+    const formations = {
+      "4-3-3": [
+        { x: 0.08, y: 0.50, pos: "GK" },
+        { x: 0.32, y: 0.15, pos: "DF" },
+        { x: 0.28, y: 0.38, pos: "DF" },
+        { x: 0.28, y: 0.62, pos: "DF" },
+        { x: 0.32, y: 0.85, pos: "DF" },
+        { x: 0.55, y: 0.50, pos: "MF" },
+        { x: 0.58, y: 0.25, pos: "MF" },
+        { x: 0.58, y: 0.75, pos: "MF" },
+        { x: 0.82, y: 0.20, pos: "FW" },
+        { x: 0.85, y: 0.50, pos: "FW" },
+        { x: 0.82, y: 0.80, pos: "FW" }
+      ],
+      "4-4-2": [
+        { x: 0.08, y: 0.50, pos: "GK" },
+        { x: 0.32, y: 0.15, pos: "DF" },
+        { x: 0.28, y: 0.38, pos: "DF" },
+        { x: 0.28, y: 0.62, pos: "DF" },
+        { x: 0.32, y: 0.85, pos: "DF" },
+        { x: 0.55, y: 0.18, pos: "MF" },
+        { x: 0.52, y: 0.38, pos: "MF" },
+        { x: 0.52, y: 0.62, pos: "MF" },
+        { x: 0.55, y: 0.82, pos: "MF" },
+        { x: 0.82, y: 0.35, pos: "FW" },
+        { x: 0.82, y: 0.65, pos: "FW" }
+      ],
+      "3-5-2": [
+        { x: 0.08, y: 0.50, pos: "GK" },
+        { x: 0.28, y: 0.22, pos: "DF" },
+        { x: 0.26, y: 0.50, pos: "DF" },
+        { x: 0.28, y: 0.78, pos: "DF" },
+        { x: 0.55, y: 0.15, pos: "MF" },
+        { x: 0.50, y: 0.35, pos: "MF" },
+        { x: 0.58, y: 0.50, pos: "MF" },
+        { x: 0.50, y: 0.65, pos: "MF" },
+        { x: 0.55, y: 0.85, pos: "MF" },
+        { x: 0.82, y: 0.35, pos: "FW" },
+        { x: 0.82, y: 0.65, pos: "FW" }
+      ],
+      "5-3-2": [
+        { x: 0.08, y: 0.50, pos: "GK" },
+        { x: 0.34, y: 0.12, pos: "DF" },
+        { x: 0.28, y: 0.30, pos: "DF" },
+        { x: 0.26, y: 0.50, pos: "DF" },
+        { x: 0.28, y: 0.70, pos: "DF" },
+        { x: 0.34, y: 0.88, pos: "DF" },
+        { x: 0.58, y: 0.25, pos: "MF" },
+        { x: 0.55, y: 0.50, pos: "MF" },
+        { x: 0.58, y: 0.75, pos: "MF" },
+        { x: 0.82, y: 0.35, pos: "FW" },
+        { x: 0.82, y: 0.65, pos: "FW" }
+      ]
+    };
+
+    // 2D 캔버스 설정
+    const canvas = document.getElementById("match-canvas");
+    const ctx = canvas.getContext("2d");
+
+    // 시뮬레이션 상태 변수
+    let homeCode = "KOR";
+    let awayCode = "BRA";
+    let isPlaying = false;
+    let matchTime = 0.0; // 0.0 ~ 90.0 분
+    let score = { home: 0, away: 0 };
+    let lastTickTime = 0;
+    let matchEventsLog = [];
+    
+    // 시뮬레이션 물리 객체
+    let simPlayers = [];
+    let simBall = { x: 320, y: 200, vx: 0, vy: 0, owner: null };
+
+    // 킥오프 상태 및 전술 패스 딜레이 보정용 변수
+    let matchState = "kickoff"; // kickoff, play
+    let kickoffTeam = "home";
+    let passLockTimer = 0; // 패스 후 즉시 스틸 방지용 보호 시간
+    let passLinePoints = null; // 패스 궤적 연출용
+
+    // 세레머니 관련 변수
+    let celebrationTimer = 0;
+    let celebrationSpot = { x: 0, y: 0 };
+    let goalScorer = null;
+    let floatCelebrationTimer = 0;
+
+    // Streamlit 통신용 핸드셰이크
+    window.parent.postMessage({
+      isStreamlitMessage: true,
+      type: "streamlit:componentReady",
+      apiVersion: 1
+    }, "*");
+
+    window.addEventListener("message", (event) => {
+      if (event.data.type === "streamlit:render") {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setFrameHeight",
+          height: 1300
+        }, "*");
+      }
+    });
+
+    // API Key 로드
+    window.onload = () => {
+      loadTeams();
+      const savedKey = localStorage.getItem("gemini_api_key");
+      if (savedKey) {
+        document.getElementById("gemini-key").value = savedKey;
+      }
+    };
+
+    // 팀 로더
+    function loadTeams() {
+      const type = document.getElementById("team-type").value;
+      const homeSelect = document.getElementById("team-selector");
+      const awaySelect = document.getElementById("opponent-selector");
+
+      homeSelect.innerHTML = "";
+      awaySelect.innerHTML = "";
+
+      const currentCategory = teamsData[type];
+      let first = true;
+      for (const [code, info] of Object.entries(currentCategory)) {
+        const optHome = new Option(info.name, code);
+        const optAway = new Option(info.name, code);
+        homeSelect.add(optHome);
+        awaySelect.add(optAway);
+        
+        if (first) {
+          homeCode = code;
+          first = false;
+        } else if (awaySelect.options.length === 2) {
+          awayCode = code;
+        }
+      }
+      
+      // Select selected index
+      homeSelect.value = homeCode;
+      awaySelect.value = awayCode;
+      
+      updateLabels();
+      renderMiniPitch();
+      renderSquadList();
+      initSimulationObjects();
+    }
+
+    function changeHomeTeam() {
+      homeCode = document.getElementById("team-selector").value;
+      updateLabels();
+      renderMiniPitch();
+      renderSquadList();
+      initSimulationObjects();
+    }
+
+    function changeAwayTeam() {
+      awayCode = document.getElementById("opponent-selector").value;
+      updateLabels();
+      initSimulationObjects();
+    }
+
+    function changeHomeFormation() {
+      renderMiniPitch();
+      renderSquadList();
+      initSimulationObjects();
+    }
+
+    function changeAwayFormation() {
+      initSimulationObjects();
+    }
+
+    function updateLabels() {
+      const type = document.getElementById("team-type").value;
+      const homeName = teamsData[type][homeCode].name;
+      const awayName = teamsData[type][awayCode].name;
+      document.getElementById("sb-home-name").innerText = homeName;
+      document.getElementById("sb-away-name").innerText = awayName;
+    }
+
+    // 포메이션에 맞춰 미니 피치 렌더링 (홈팀 기준 11명 + OVR)
+    function renderMiniPitch() {
+      const type = document.getElementById("team-type").value;
+      const team = teamsData[type][homeCode];
+      const formationCode = document.getElementById("home-formation").value;
+      const pitch = document.getElementById("mini-pitch-view");
+      
+      const relativePositions = formations[formationCode];
+
+      // 기존 노드들 삭제
+      pitch.querySelectorAll(".mini-player-node").forEach(n => n.remove());
+
+      // 11명 노드 배치
+      team.lineup.forEach((player, idx) => {
+        const node = document.createElement("div");
+        node.className = "mini-player-node";
+        node.style.background = team.color;
+        node.style.borderColor = team.textColor;
+        
+        const posInfo = relativePositions[idx] || { x: 0.5, y: 0.5, pos: "MF" };
+        node.style.left = `${posInfo.x * 100}%`;
+        node.style.top = `${posInfo.y * 100}%`;
+
+        // OVR 계산
+        const ovr = Math.round((player.stats.speed + player.stats.passing + player.stats.defense) / 3);
+        node.setAttribute("data-pos", `${player.name} (${ovr})`);
+        pitch.appendChild(node);
+      });
+    }
+
+    // 좌측 스쿼드 리스트 및 팀 평균 OVR 렌더링
+    function renderSquadList() {
+      const type = document.getElementById("team-type").value;
+      const team = teamsData[type][homeCode];
+      const container = document.getElementById("squad-list-container");
+
+      let totalOvr = 0;
+      let attackOvr = 0, midOvr = 0, defOvr = 0;
+      let attCount = 0, midCount = 0, defCount = 0;
+
+      let listHtml = "";
+
+      team.lineup.forEach((player) => {
+        const ovr = Math.round((player.stats.speed + player.stats.passing + player.stats.defense) / 3);
+        totalOvr += ovr;
+
+        if (player.pos === "FW") { attackOvr += ovr; attCount++; }
+        else if (player.pos === "MF") { midOvr += ovr; midCount++; }
+        else if (player.pos === "DF" || player.pos === "GK") { defOvr += ovr; defCount++; }
+
+        listHtml += `
+          <div style="display:flex; justify-content:space-between; padding: 2px 4px; border-bottom: 0.5px solid rgba(255,255,255,0.05);">
+            <span><strong>[${player.pos}]</strong> ${player.name}</span>
+            <span style="color:#facc15; font-weight:bold;">OVR ${ovr}</span>
+          </div>
+        `;
+      });
+
+      const avgOvr = Math.round(totalOvr / 11);
+      const attAvg = attCount > 0 ? Math.round(attackOvr / attCount) : 70;
+      const midAvg = midCount > 0 ? Math.round(midOvr / midCount) : 70;
+      const defAvg = defCount > 0 ? Math.round(defOvr / defCount) : 70;
+
+      let headerHtml = `
+        <div style="font-weight:700; color:#38bdf8; margin-bottom: 6px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">
+          ⚽ 팀 평균 OVR: ${avgOvr} (공격:${attAvg} | 미드:${midAvg} | 수비:${defAvg})
+        </div>
+      `;
+
+      container.innerHTML = headerHtml + listHtml;
+    }
+
+    // 시뮬레이션용 데이터 초기화
+    function initSimulationObjects() {
+      const type = document.getElementById("team-type").value;
+      const homeTeam = teamsData[type][homeCode];
+      const awayTeam = teamsData[type][awayCode];
+
+      const homeForm = document.getElementById("home-formation").value;
+      const awayForm = document.getElementById("away-formation").value;
+
+      simPlayers = [];
+      score = { home: 0, away: 0 };
+      matchTime = 0.0;
+      isPlaying = false;
+      matchState = "kickoff";
+      kickoffTeam = "home";
+      passLockTimer = 0;
+      passLinePoints = null;
+
+      document.getElementById("sb-score").innerText = "0 - 0";
+      document.getElementById("sb-time").innerText = "00:00";
+      document.getElementById("btn-start").innerText = "⚡ 경기 시작";
+      document.getElementById("btn-start").disabled = false;
+      document.getElementById("btn-pause").disabled = true;
+      
+      // 텍스트 중계 초기화
+      matchEventsLog = [];
+      const logBox = document.getElementById("log-list");
+      logBox.innerHTML = `<div class="log-item"><span class="log-time">[00:00]</span> 양 팀 선수단이 경기장에 입장하여 킥오프를 준비 중입니다.</div>`;
+      document.getElementById("btn-ai-rate").disabled = true;
+      document.getElementById("ai-results-sec").style.display = "none";
+
+      const homeFormCoords = formations[homeForm];
+      const awayFormCoords = formations[awayForm];
+
+      // 홈 포지션 11명 배치 (좌측 절반 영역에 전원 격리)
+      homeTeam.lineup.forEach((player, idx) => {
+        const rel = homeFormCoords[idx] || { x: 0.5, y: 0.5 };
+        // 홈팀은 X: 20 ~ 290 범위
+        const x = 20 + rel.x * 270;
+        const y = 20 + rel.y * 360;
+
+        simPlayers.push({
+          id: `H_${idx}`,
+          name: player.name,
+          pos: player.pos,
+          team: "home",
+          color: homeTeam.color,
+          textColor: homeTeam.textColor,
+          homeX: x,
+          homeY: y,
+          x: x,
+          y: y,
+          vx: 0,
+          vy: 0,
+          stats: player.stats,
+          performance: { goals: 0, passes: 0, tackles: 0, saves: 0, shots: 0 }
+        });
+      });
+
+      // 어웨이 포지션 11명 배치 (우측 절반 영역에 전원 격리)
+      awayTeam.lineup.forEach((player, idx) => {
+        const rel = awayFormCoords[idx] || { x: 0.5, y: 0.5 };
+        // 어웨이팀은 X: 620 ~ 350 범위로 미러링
+        const x = 620 - rel.x * 270;
+        const y = 20 + rel.y * 360;
+
+        simPlayers.push({
+          id: `A_${idx}`,
+          name: player.name,
+          pos: player.pos,
+          team: "away",
+          color: awayTeam.color,
+          textColor: awayTeam.textColor,
+          homeX: x,
+          homeY: y,
+          x: x,
+          y: y,
+          vx: 0,
+          vy: 0,
+          stats: player.stats,
+          performance: { goals: 0, passes: 0, tackles: 0, saves: 0, shots: 0 }
+        });
+      });
+
+      // 킥오프 시작 배치
+      setupKickoffPositions();
+    }
+
+    // 킥오프 진영 재배치 함수 (득점/시작 시 호출)
+    function setupKickoffPositions() {
+      // 1. 모든 선수를 본래 포메이션 위치(자기 진영)로 복원
+      simPlayers.forEach(p => {
+        p.x = p.homeX;
+        p.y = p.homeY;
+        p.vx = 0;
+        p.vy = 0;
+      });
+
+      // 2. 킥오프를 차는 팀의 스트라이커(보통 인덱스 9 또는 10)를 센터라인 바로 옆에 배치
+      // 홈팀 킥오프 시
+      if (kickoffTeam === "home") {
+        const st = simPlayers[9]; // 홈팀 ST
+        st.x = 310;
+        st.y = 200;
+
+        const lm = simPlayers[7]; // 홈팀 미드필더 지원
+        lm.x = 295;
+        lm.y = 205;
+
+        simBall.x = 320;
+        simBall.y = 200;
+        simBall.owner = st;
+      } 
+      // 어웨이팀 킥오프 시
+      else {
+        const st = simPlayers[20]; // 어웨이팀 ST (11 + 9)
+        st.x = 330;
+        st.y = 200;
+
+        const lm = simPlayers[18]; // 어웨이팀 미드필더 지원
+        lm.x = 345;
+        lm.y = 205;
+
+        simBall.x = 320;
+        simBall.y = 200;
+        simBall.owner = st;
+      }
+
+      simBall.vx = 0;
+      simBall.vy = 0;
+      drawPitch();
+    }
+
+    // 2D 매치 피치 그리기
+    function drawPitch() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 잔디
+      ctx.fillStyle = "#1e4d2b";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 스트라이프 효과
+      ctx.fillStyle = "#164022";
+      for (let i = 0; i < canvas.width; i += 64) {
+        if ((i / 64) % 2 === 0) {
+          ctx.fillRect(i, 0, 32, canvas.height);
+        }
+      }
+
+      // 흰색 터치라인
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(15, 15, canvas.width - 30, canvas.height - 30);
+
+      // 하프라인 & 센터서클
+      ctx.beginPath();
+      ctx.moveTo(canvas.width / 2, 15);
+      ctx.lineTo(canvas.width / 2, canvas.height - 15);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, canvas.height / 2, 50, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 페널티 박스 (좌측)
+      ctx.strokeRect(15, 90, 80, 220);
+      ctx.strokeRect(15, 140, 30, 120);
+
+      // 페널티 박스 (우측)
+      ctx.strokeRect(canvas.width - 95, 90, 80, 220);
+      ctx.strokeRect(canvas.width - 45, 140, 30, 120);
+
+      // 좌우 골대 그리기
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.fillRect(5, 170, 10, 60);
+      ctx.fillRect(canvas.width - 15, 170, 10, 60);
+
+      // 패스 궤적 연출 (점선 그리기)
+      if (passLinePoints) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(250, 204, 21, 0.6)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(passLinePoints.x1, passLinePoints.y1);
+        ctx.lineTo(passLinePoints.x2, passLinePoints.y2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 선수 그리기
+      simPlayers.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 선수 이름/포지션 약어 조그맣게 노출 (OVR 포함)
+        const ovr = Math.round((p.stats.speed + p.stats.passing + p.stats.defense) / 3);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "8px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(`${p.name.substring(0, 2)}(${ovr})`, p.x, p.y - 11);
+
+        // 공 소유자 링 표시
+        if (simBall.owner === p) {
+          ctx.strokeStyle = "#facc15";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 11, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      });
+
+      // 공 그리기
+      ctx.beginPath();
+      ctx.arc(simBall.x, simBall.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // 세레머니 중 축하 텍스트 및 오버레이 그리기
+      if (matchState === "celebration" && goalScorer) {
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.shadowColor = "#facc15";
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = "#facc15";
+        ctx.font = "bold 38px 'Outfit', sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("⚽ GOAL!!! ⚽", canvas.width / 2, canvas.height / 2 - 20);
+        
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 16px 'Inter', sans-serif";
+        const type = document.getElementById("team-type").value;
+        const teamName = (goalScorer.team === "home") ? teamsData[type][homeCode].name : teamsData[type][awayCode].name;
+        ctx.fillText(`${teamName} - ${goalScorer.name} 득점!`, canvas.width / 2, canvas.height / 2 + 25);
+        ctx.restore();
+      }
+    }
+
+    // 중계 로그 추가 함수
+    function addLog(min, text, isGoal = false, isCard = false) {
+      const logBox = document.getElementById("log-list");
+      const timeStr = `${String(Math.floor(min)).padStart(2, '0')}:${String(Math.floor((min % 1) * 60)).padStart(2, '0')}`;
+      
+      let classStr = "log-item";
+      let eventText = text;
+      if (isGoal) {
+        classStr += " log-event-goal";
+        eventText = `⚽ ${text}`;
+      } else if (isCard) {
+        classStr += " log-event-card";
+      }
+
+      const logItem = document.createElement("div");
+      logItem.className = classStr;
+      logItem.innerHTML = `<span class="log-time">[${timeStr}]</span> ${eventText}`;
+      
+      logBox.insertBefore(logItem, logBox.firstChild);
+      
+      matchEventsLog.push({ time: timeStr, desc: text });
+    }
+
+    // 시뮬레이션 제어
+    function startSim() {
+      if (isPlaying) return;
+      isPlaying = true;
+      document.getElementById("btn-start").innerText = "🏃 시뮬레이션 중...";
+      document.getElementById("btn-start").disabled = true;
+      document.getElementById("btn-pause").disabled = false;
+      
+      lastTickTime = performance.now();
+      requestAnimationFrame(simLoop);
+    }
+
+    function pauseSim() {
+      isPlaying = false;
+      document.getElementById("btn-start").innerText = "⚡ 경기 재개";
+      document.getElementById("btn-start").disabled = false;
+      document.getElementById("btn-pause").disabled = true;
+    }
+
+    function resetSim() {
+      initSimulationObjects();
+    }
+
+    // 시뮬레이션 틱 루프
+    function simLoop(now) {
+      if (!isPlaying) return;
+
+      const dt = (now - lastTickTime) / 1000;
+      lastTickTime = now;
+
+      // 경기 시간 업데이트 (매초당 2.5분 속도로 경기 소진)
+      matchTime += dt * 2.5;
+
+      if (matchTime >= 90.0) {
+        matchTime = 90.0;
+        isPlaying = false;
+        document.getElementById("sb-time").innerText = "90:00";
+        document.getElementById("btn-start").innerText = "🏆 경기 완료";
+        document.getElementById("btn-start").disabled = true;
+        document.getElementById("btn-pause").disabled = true;
+        
+        addLog(90.0, `최종 종료 휘슬이 울렸습니다! 경기 스코어 ${score.home}대 ${score.away}로 완료되었습니다.`, true);
+        document.getElementById("btn-ai-rate").disabled = false;
+        drawPitch();
+        return;
+      }
+
+      // 시간 표시 갱신
+      const displayMin = Math.floor(matchTime);
+      const displaySec = Math.floor((matchTime % 1) * 60);
+      document.getElementById("sb-time").innerText = `${String(displayMin).padStart(2, '0')}:${String(displaySec).padStart(2, '0')}`;
+
+      // 물리 엔진 및 매치 AI 업데이트
+      updateSimulationPhysics(dt);
+
+      drawPitch();
+
+      requestAnimationFrame(simLoop);
+    }
+
+    // 대인 마크 대상 반환 헬퍼 함수
+    function getMarkedOpponent(defender, attackerTeam) {
+      // 공격팀 outfield 선수들 중 GK와 공 소유자 제외
+      const attackers = simPlayers.filter(p => p.team === attackerTeam && p.pos !== "GK" && p !== simBall.owner);
+      if (attackers.length === 0) return null;
+      
+      let closestAttacker = null;
+      let minDist = Infinity;
+      attackers.forEach(att => {
+        const dx = att.x - defender.x;
+        const dy = att.y - defender.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < minDist) {
+          minDist = dist;
+          closestAttacker = att;
+        }
+      });
+      return closestAttacker;
+    }
+
+    // 크로스 시도 함수
+    function attemptCross(passer) {
+      const teammates = simPlayers.filter(p => p.team === passer.team && p !== passer && p.pos !== "GK");
+      let receiver = teammates.find(p => p.pos === "FW");
+      if (!receiver && teammates.length > 0) {
+        receiver = teammates[0];
+      }
+
+      if (receiver) {
+        const targetX = receiver.x + (Math.random() - 0.5) * 15;
+        const targetY = receiver.y + (Math.random() - 0.5) * 15;
+
+        simBall.owner = null;
+        simBall.x = passer.x;
+        simBall.y = passer.y;
+
+        const dx = targetX - passer.x;
+        const dy = targetY - passer.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+
+        simBall.vx = (dx / dist) * 14;
+        simBall.vy = (dy / dist) * 14;
+        simBall.z = 1;
+        simBall.vz_air = 15; // 공중 솟구침 높이
+        passLockTimer = 0.7;
+
+        passLinePoints = { x1: passer.x, y1: passer.y, x2: targetX, y2: targetY };
+        setTimeout(() => { passLinePoints = null; }, 500);
+
+        passer.performance.passes += 1;
+        addLog(matchTime, `⚽ ${passer.name} 선수가 측면에서 날카로운 공중 크로스를 올립니다!`);
+      }
+    }
+
+    // 22인 물리 AI 및 매치 전략 업데이트
+    function updateSimulationPhysics(dt) {
+      // 슬라이더 전술값 획득
+      const speedSlider = parseInt(document.getElementById("speed-slider").value);
+      const passSlider = parseInt(document.getElementById("pass-slider").value);
+      const pressureSlider = parseInt(document.getElementById("pressure-slider").value);
+
+      // 패스 보호 타이머 감소
+      if (passLockTimer > 0) passLockTimer -= dt;
+
+      // 세레머니 단계 처리
+      if (matchState === "celebration") {
+        celebrationTimer -= dt;
+        floatCelebrationTimer += dt;
+        
+        // 득점자는 코너 좌표로 전진
+        const scorer = goalScorer;
+        const dx = celebrationSpot.x - scorer.x;
+        const dy = celebrationSpot.y - scorer.y;
+        const distToSpot = Math.sqrt(dx*dx + dy*dy);
+        if (distToSpot > 12) {
+          scorer.x += (dx / distToSpot) * 110 * dt;
+          scorer.y += (dy / distToSpot) * 110 * dt;
+        }
+
+        // 같은 팀 동료들은 득점자를 쫓아가서 뭉침
+        simPlayers.forEach(p => {
+          if (p.team === scorer.team && p !== scorer) {
+            const tdx = scorer.x - p.x;
+            const tdy = scorer.y - p.y;
+            const tdist = Math.sqrt(tdx*tdx + tdy*tdy);
+            if (tdist > 20) {
+              p.x += (tdx / tdist) * 90 * dt;
+              p.y += (tdy / tdist) * 90 * dt;
+            }
+          } else if (p.team !== scorer.team) {
+            // 실점 팀은 아쉬워서 멈춤
+            p.vx = 0;
+            p.vy = 0;
+          }
+        });
+
+        // 공은 느리게 구르다 멈춤
+        simBall.x += simBall.vx * dt * 10;
+        simBall.y += simBall.vy * dt * 10;
+        simBall.vx *= 0.90;
+        simBall.vy *= 0.90;
+
+        if (celebrationTimer <= 0) {
+          matchState = "kickoff";
+          setupKickoffPositions();
+        }
+        return;
+      }
+
+      // 킥오프 단계 처리
+      if (matchState === "kickoff") {
+        const type = document.getElementById("team-type").value;
+        const kickingTeamName = (kickoffTeam === "home") ? teamsData[type][homeCode].name : teamsData[type][awayCode].name;
+        
+        addLog(matchTime, `${kickingTeamName}의 킥오프로 경기가 시작(혹은 재개)됩니다.`);
+        
+        // 킥오프 패스 연산: ST가 바로 근처의 미드필더에게 짧은 킥오프 패스를 보냄
+        const stIndex = (kickoffTeam === "home") ? 9 : 20;
+        const targetIndex = (kickoffTeam === "home") ? 7 : 18;
+        
+        const passer = simPlayers[stIndex];
+        const target = simPlayers[targetIndex];
+
+        simBall.owner = null;
+        const dx = target.x - passer.x;
+        const dy = target.y - passer.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        
+        // 공을 타겟으로 패스
+        simBall.vx = (dx / dist) * 14;
+        simBall.vy = (dy / dist) * 14;
+        passLockTimer = 0.6; // 킥오프 시 스틸 방지
+        
+        // 궤적 연출
+        passLinePoints = { x1: passer.x, y1: passer.y, x2: target.x, y2: target.y };
+        setTimeout(() => { passLinePoints = null; }, 400);
+
+        matchState = "play";
+        return;
+      }
+
+      // 1. 공 소유권이 없는 경우, 공과 가까운 선수들이 공을 획득하러 달려듬
+      if (!simBall.owner) {
+        let closestPlayer = null;
+        let minDist = Infinity;
+
+        simPlayers.forEach(p => {
+          if (p.pos === "GK") return;
+
+          const dx = simBall.x - p.x;
+          const dy = simBall.y - p.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < minDist) {
+            minDist = dist;
+            closestPlayer = p;
+          }
+        });
+
+        if (closestPlayer) {
+          const dx = simBall.x - closestPlayer.x;
+          const dy = simBall.y - closestPlayer.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          
+          if (dist > 0.1) {
+            const moveSpeed = (2.2 + (closestPlayer.stats.speed / 45) + (speedSlider / 100)) * 25 * dt;
+            closestPlayer.x += (dx / dist) * moveSpeed;
+            closestPlayer.y += (dy / dist) * moveSpeed;
+          }
+
+          // 공 소유 판정 (공중볼이 높이 떠있지 않을 때만 획득 가능, 패스/킥오프 보호 타이머 연동)
+          if (dist < 9 && simBall.z < 8 && passLockTimer <= 0) {
+            simBall.owner = closestPlayer;
+            simBall.vx = 0;
+            simBall.vy = 0;
+            simBall.z = 0;
+            simBall.vz_air = 0;
+            passLockTimer = 0.3; // 터치 시 스틸 딜레이
+
+            // 크로스 낙하 지점(페널티 박스 안)에서 아군 공격수가 볼을 획득 시 즉각 슈팅
+            const inOppBox = (closestPlayer.team === "home" && closestPlayer.x > 490) ||
+                             (closestPlayer.team === "away" && closestPlayer.x < 150);
+            if (inOppBox && Math.random() < 0.75) {
+              addLog(matchTime, `⚡ ${closestPlayer.name}의 논스톱 다이렉트 헤더/슈팅!!!`);
+              attemptShot(closestPlayer);
+            } else {
+              addLog(matchTime, `${closestPlayer.name} 선수가 공을 확보하며 공격을 이끕니다.`);
+            }
+          }
+        }
+
+        // 공의 단독 구름 연산
+        simBall.x += simBall.vx * dt * 30;
+        simBall.y += simBall.vy * dt * 30;
+        simBall.vx *= 0.95;
+        simBall.vy *= 0.95;
+
+        // 공중볼 물리 연산
+        if (simBall.z > 0 || simBall.vz_air !== 0) {
+          simBall.z += simBall.vz_air * dt * 25;
+          simBall.vz_air -= 9.8 * dt * 2.5; // 중력 가속도
+          if (simBall.z < 0) {
+            simBall.z = 0;
+            simBall.vz_air = 0;
+          }
+        }
+
+      } else {
+        // 공 소유자가 있는 경우
+        const owner = simBall.owner;
+        simBall.x = owner.x;
+        simBall.y = owner.y;
+        simBall.z = 0;
+        simBall.vz_air = 0;
+
+        // 공격 방향에 따라 전진 (가까운 수비수 회피 조향 힘 적용)
+        const targetGoalX = (owner.team === "home") ? canvas.width - 20 : 20;
+        const targetGoalY = 200;
+
+        const dx = targetGoalX - owner.x;
+        const dy = targetGoalY - owner.y;
+        const distToGoal = Math.sqrt(dx*dx + dy*dy);
+
+        let steerX = dx / distToGoal;
+        let steerY = dy / distToGoal;
+
+        // 가까운 수비수 감지 및 회피 조향
+        let closestDefender = null;
+        let minDefDist = Infinity;
+        simPlayers.forEach(p => {
+          if (p.team !== owner.team && p.pos !== "GK") {
+            const odx = p.x - owner.x;
+            const ody = p.y - owner.y;
+            const odist = Math.sqrt(odx*odx + ody*ody);
+            if (odist < minDefDist) {
+              minDefDist = odist;
+              closestDefender = p;
+            }
+          }
+        });
+
+        if (closestDefender && minDefDist < 35) {
+          // 수비수의 상대 위치 방향 수직 벡터 구하기
+          const rx = closestDefender.x - owner.x;
+          const ry = closestDefender.y - owner.y;
+          // 수직 벡터 (ry, -rx)
+          const perpX = ry;
+          const perpY = -rx;
+          const perpDist = Math.sqrt(perpX*perpX + perpY*perpY);
+          
+          if (perpDist > 0) {
+            const avoidStrength = (35 - minDefDist) / 35; // 수비수와 밀접할수록 회피 강해짐
+            steerX = steerX + (perpX / perpDist) * avoidStrength * 1.35;
+            steerY = steerY + (perpY / perpDist) * avoidStrength * 1.35;
+            
+            const steerLen = Math.sqrt(steerX*steerX + steerY*steerY);
+            steerX /= steerLen;
+            steerY /= steerLen;
+          }
+        }
+
+        const dribbleSpeed = (1.5 + (owner.stats.speed / 50) + (speedSlider / 100)) * 20 * dt;
+        owner.x += steerX * dribbleSpeed;
+        owner.y += steerY * dribbleSpeed;
+
+        // 측면 윙어 구역 도달 시 크로스 시도 판정
+        const isWingArea = (owner.team === "home" && owner.x > 380 && (owner.y < 80 || owner.y > 320)) ||
+                           (owner.team === "away" && owner.x < 260 && (owner.y < 80 || owner.y > 320));
+        
+        if (isWingArea && Math.random() < 0.12) {
+          attemptCross(owner);
+        } else {
+          // 수비 팀 1인 집중 압박 및 대인 맨투맨 마킹
+          let pressMarker = null;
+          let minGkDist = Infinity;
+          simPlayers.forEach(p => {
+            if (p.team !== owner.team && p.pos !== "GK") {
+              const odx = owner.x - p.x;
+              const ody = owner.y - p.y;
+              const odist = Math.sqrt(odx*odx + ody*ody);
+              if (odist < minGkDist) {
+                minGkDist = odist;
+                pressMarker = p;
+              }
+            }
+          });
+
+          // 압박 마커 수비수 동작
+          if (pressMarker) {
+            const opDx = owner.x - pressMarker.x;
+            const opDy = owner.y - pressMarker.y;
+            const opDist = Math.sqrt(opDx*opDx + opDy*opDy);
+
+            if (opDist > 0.1) {
+              const pressSpeed = (1.6 + (pressMarker.stats.speed / 50) + (pressureSlider / 100)) * 24 * dt;
+              pressMarker.x += (opDx / opDist) * pressSpeed;
+              pressMarker.y += (opDy / opDist) * pressSpeed;
+            }
+
+            // 대인 태클 시도
+            if (opDist < 9 && passLockTimer <= 0) {
+              const tackleSuccessChance = 0.12 + (pressMarker.stats.defense / 200) + (pressureSlider / 400);
+              if (Math.random() < tackleSuccessChance) {
+                simBall.owner = pressMarker;
+                pressMarker.performance.tackles += 1;
+                passLockTimer = 0.4;
+                addLog(matchTime, `${pressMarker.name}의 정확한 대인 방어! 공을 탈취합니다.`);
+              }
+            }
+          }
+
+          // 나머지 수비수들은 각자 대인 맨투맨 마킹
+          simPlayers.forEach(p => {
+            if (p.team !== owner.team && p.pos !== "GK" && p !== pressMarker) {
+              const markedOpp = getMarkedOpponent(p, owner.team);
+              if (markedOpp) {
+                const sideOffset = (p.team === "home") ? -16 : 16;
+                const targetMarkX = markedOpp.x + sideOffset;
+                const targetMarkY = markedOpp.y;
+
+                const mdx = targetMarkX - p.x;
+                const mdy = targetMarkY - p.y;
+                const mdist = Math.sqrt(mdx*mdx + mdy*mdy);
+                if (mdist > 15) {
+                  const markSpeed = (1.4 + (p.stats.speed / 60)) * 14 * dt;
+                  p.x += (mdx / mdist) * markSpeed;
+                  p.y += (mdy / mdist) * markSpeed;
+                }
+              }
+            }
+          });
+        }
+
+        // 3. 골키퍼 위치 보정
+        simPlayers.forEach(p => {
+          if (p.pos === "GK") {
+            const gkDy = simBall.y - p.y;
+            const gkSpeed = 16 * dt;
+            p.y += Math.sign(gkDy) * Math.min(Math.abs(gkDy), gkSpeed);
+            p.y = Math.max(160, Math.min(240, p.y));
+          }
+        });
+
+        // 4. 슛 및 패스 전술 의사 결정
+        const shootRange = 140;
+        const inShootingArea = (owner.team === "home" && owner.x > canvas.width - shootRange) || 
+                              (owner.team === "away" && owner.x < shootRange);
+
+        if (inShootingArea) {
+          if (Math.random() < 0.12) {
+            attemptShot(owner);
+          }
+        } else {
+          const passChance = 0.05 + (passSlider / 1500);
+          if (Math.random() < passChance) {
+            attemptPass(owner, passSlider);
+          }
+        }
+      }
+
+      // 5. 공이 없는 아군 선수들은 공격 방향에 맞춰 유기적인 전술 위치 지원
+      simPlayers.forEach(p => {
+        if (p === simBall.owner) return;
+
+        let attackShift = 0;
+        let targetX = p.homeX;
+        let targetY = p.homeY;
+
+        if (simBall.owner) {
+          const owner = simBall.owner;
+          const ballProgress = simBall.x / canvas.width;
+          
+          if (p.team === owner.team) {
+            // 공격팀 행동: 라인 끌어올리기
+            attackShift = (p.team === "home" ? ballProgress : (1 - ballProgress)) * 160;
+            targetX = p.homeX + (p.team === "home" ? attackShift : -attackShift);
+            
+            // 크로스 상황 시 박스 침투
+            const ownerIsOnWing = (owner.x > 380 && (owner.y < 80 || owner.y > 320) && owner.team === "home") ||
+                                  (owner.x < 260 && (owner.y < 80 || owner.y > 320) && owner.team === "away");
+            if (ownerIsOnWing && (p.pos === "FW" || p.pos === "ST")) {
+              targetX = (p.team === "home") ? 530 + (Math.random() - 0.5) * 20 : 110 + (Math.random() - 0.5) * 20;
+              targetY = 200 + (Math.random() - 0.5) * 45;
+            }
+          }
+        }
+
+        // 수비수는 자기 하프라인을 과도하게 넘지 않도록 제한
+        if (p.pos === "DF") {
+          if (p.team === "home") targetX = Math.min(320, targetX);
+          else targetX = Math.max(320, targetX);
+        }
+
+        const dx = targetX - p.x;
+        const dy = targetY - p.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > 12) {
+          p.x += (dx / dist) * 18 * dt;
+          p.y += (dy / dist) * 18 * dt;
+        }
+      });
+
+      // 선수 상호 충돌 밀어내기 (골키퍼 제외) - 다중 반복(3회)을 통해 누적 겹침도 깔끔하게 해소
+      for (let iter = 0; iter < 3; iter++) {
+        for (let i = 0; i < simPlayers.length; i++) {
+          for (let j = i + 1; j < simPlayers.length; j++) {
+            const p1 = simPlayers[i];
+            const p2 = simPlayers[j];
+            if (p1.pos === "GK" || p2.pos === "GK") continue; // 골키퍼는 제외
+            
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const minDist = 15; // 안전거리 15px로 확대
+            if (dist < minDist) {
+              const overlap = minDist - dist;
+              const pushX = (dist === 0) ? (Math.random() - 0.5) : (dx / dist);
+              const pushY = (dist === 0) ? (Math.random() - 0.5) : (dy / dist);
+              
+              // 0.4의 댐핑 계수를 주어 부드럽게 밀어내고 고주파 진동 방지
+              p1.x -= pushX * overlap * 0.4;
+              p1.y -= pushY * overlap * 0.4;
+              p2.x += pushX * overlap * 0.4;
+              p2.y += pushY * overlap * 0.4;
+            }
+          }
+        }
+      }
+
+      // 최종 경기장 내 경계선 제한 (충돌 밀어내기 이후 연산)
+      simPlayers.forEach(p => {
+        p.x = Math.max(18, Math.min(canvas.width - 18, p.x));
+        p.y = Math.max(18, Math.min(canvas.height - 18, p.y));
+      });
+
+      // 공 경계선 최종 제한
+      simBall.x = Math.max(15, Math.min(canvas.width - 15, simBall.x));
+      simBall.y = Math.max(15, Math.min(canvas.height - 15, simBall.y));
+    }
+
+    // 패스 틱
+    function attemptPass(passer, passDistanceSlider) {
+      const teammates = simPlayers.filter(p => p.team === passer.team && p !== passer && p.pos !== "GK");
+      const opponents = simPlayers.filter(p => p.team !== passer.team && p.pos !== "GK");
+
+      // 패스 거리 슬라이더가 타겟 탐색 거리에 미치는 영향
+      const preferredDistance = 60 + (passDistanceSlider * 1.8);
+      
+      let bestTarget = null;
+      let highestTacticalScore = -Infinity;
+
+      teammates.forEach(tm => {
+        const dx = tm.x - passer.x;
+        const dy = tm.y - passer.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+
+        // 너무 가깝거나 먼 대상 제외
+        if (dist < 30 || dist > 250) return;
+
+        // 1. 타겟과의 전술 선호 거리 점수
+        const distScore = 100 - Math.abs(dist - preferredDistance);
+
+        // 2. 타겟 주변 수비수 마크 현황 (오픈 찬스 점수)
+        let minOppDist = Infinity;
+        opponents.forEach(opp => {
+          const odx = tm.x - opp.x;
+          const ody = tm.y - opp.y;
+          const od = Math.sqrt(odx*odx + ody*ody);
+          if (od < minOppDist) minOppDist = od;
+        });
+
+        // 수비수가 멀리 있을 수록 높은 가중치 점수
+        const openScore = Math.min(100, minOppDist * 1.5);
+
+        // 전술적 합산 점수
+        const totalScore = distScore + openScore;
+        if (totalScore > highestTacticalScore) {
+          highestTacticalScore = totalScore;
+          bestTarget = tm;
+        }
+      });
+
+      if (bestTarget) {
+        const dx = bestTarget.x - passer.x;
+        const dy = bestTarget.y - passer.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+
+        // 패스 능력치에 기반한 성공 연산
+        const passSuccessChance = 0.65 + (passer.stats.passing / 300);
+        
+        simBall.owner = null;
+        simBall.x = passer.x;
+        simBall.y = passer.y;
+
+        if (Math.random() < passSuccessChance) {
+          // 패스 성공
+          simBall.vx = (dx / dist) * 16;
+          simBall.vy = (dy / dist) * 16;
+          passLockTimer = 0.5; // 패스 성공 후 인터셉트 유예시간 확보
+
+          // 패스 궤적 연출 기록
+          passLinePoints = { x1: passer.x, y1: passer.y, x2: bestTarget.x, y2: bestTarget.y };
+          setTimeout(() => { passLinePoints = null; }, 300);
+
+          passer.performance.passes += 1;
+          addLog(matchTime, `${passer.name} 선수가 ${bestTarget.name} 선수에게 부드러운 전술 패스를 연결합니다.`);
+        } else {
+          // 패스 불발 (궤적 살짝 이탈 및 흘러감)
+          const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.6;
+          simBall.vx = Math.cos(angle) * 12;
+          simBall.vy = Math.sin(angle) * 12;
+          addLog(matchTime, `${passer.name}의 패스 시도가 차단당하며 루즈볼이 흘러나갑니다.`);
+        }
+      }
+    }
+
+    // 슛 틱
+    function attemptShot(shooter) {
+      const oppGk = simPlayers.find(p => p.team !== shooter.team && p.pos === "GK");
+      addLog(matchTime, `⚡ ${shooter.name}의 날카로운 직접 슈팅!!!`);
+
+      shooter.performance.shots += 1;
+      simBall.owner = null;
+
+      // 골키퍼 선방 확률
+      const gkDef = oppGk ? oppGk.stats.defense : 70;
+      const saveChance = 0.45 + (gkDef / 250) - (shooter.stats.speed / 350);
+
+      if (Math.random() < saveChance) {
+        // 선방
+        if (oppGk) {
+          oppGk.performance.saves += 1;
+          simBall.x = oppGk.x;
+          simBall.y = oppGk.y;
+          // 공이 코너쪽으로 쳐내짐
+          simBall.vx = (Math.random() > 0.5 ? 5 : -5);
+          simBall.vy = -7;
+          addLog(matchTime, `🧤 ${oppGk.name} 골키퍼의 뛰어난 피칭 반응! 슈팅을 멋지게 처냅니다.`);
+        }
+      } else {
+        // 골인 판정
+        if (shooter.team === "home") {
+          score.home += 1;
+          kickoffTeam = "away"; // 실점팀 킥오프로 전향
+        } else {
+          score.away += 1;
+          kickoffTeam = "home";
+        }
+        
+        shooter.performance.goals += 1;
+        document.getElementById("sb-score").innerText = `${score.home} - ${score.away}`;
+        addLog(matchTime, `🎉 골인!!! ${shooter.name}의 환상적인 슛이 골대에 꽂힙니다!`, true);
+
+        // 세레머니 상태로 전환
+        matchState = "celebration";
+        celebrationTimer = 3.0; // 3초간 세레머니 진행
+        goalScorer = shooter;
+        floatCelebrationTimer = 0;
+        
+        // 세레머니 코너 좌표 (득점팀 공격 방향 구석)
+        if (shooter.team === "home") {
+          celebrationSpot = { x: 590, y: 50 }; // 우측 상단 구석
+        } else {
+          celebrationSpot = { x: 50, y: 50 }; // 좌측 상단 구석
+        }
+      }
+    }
+
+    // API Key 저장
+    function saveApiKey(key) {
+      localStorage.setItem("gemini_api_key", key);
+    }
+
+    // Gemini API 평점 채점기 연동
+    async function getAiRatings() {
+      const apiKey = document.getElementById("gemini-key").value.trim();
+      if (!apiKey) {
+        alert("Gemini API Key를 입력해야 기능을 사용할 수 있습니다.");
+        return;
+      }
+
+      document.getElementById("ai-results-sec").style.display = "none";
+      document.getElementById("ai-loading").style.display = "block";
+      document.getElementById("btn-ai-rate").disabled = true;
+
+      // 선수들 매치 퍼포먼스 통계 및 이벤트 로그 정리
+      const playerStatsSummary = simPlayers.map(p => {
+        return `${p.name} (${p.team === 'home' ? 'Home' : 'Away'}, ${p.pos}): 골 ${p.performance.goals}, 패스 ${p.performance.passes}, 태클 ${p.performance.tackles}, 세이브 ${p.performance.saves}, 슛 ${p.performance.shots}`;
+      }).join("\n");
+
+      const logSummary = matchEventsLog.slice(-15).map(e => `[${e.time}] ${e.desc}`).join("\n");
+
+      const promptText = `
+다음은 2D 시뮬레이터로 진행된 축구 경기 데이터 및 주요 로그입니다.
+이 매치 데이터와 선수 활동 지표를 종합적으로 검토하여, 양 팀의 출전한 선수(총 22명) 전체에 대해 1점부터 10점까지의 평점과 한 줄의 재치 있는 한글 비평을 매겨주세요.
+또한 최종적으로 경기 전체에 대한 전문가용 칼럼식 한 줄 논평(경기 총평)을 작성해주세요.
+
+[경기 정보]
+- 홈팀 스코어: ${document.getElementById("sb-home-name").innerText} ${score.home}
+- 어웨이팀 스코어: ${document.getElementById("sb-away-name").innerText} ${score.away}
+
+[선수단 스탯 지표]
+${playerStatsSummary}
+
+[경기 막판 주요 로그]
+${logSummary}
+
+결과는 반드시 아래의 JSON 포맷 형식을 엄격히 지켜서 제공해 주세요. 다른 백텍(\`\`\`)이나 텍스트 설명 없이 JSON 데이터만 응답해야 합니다.
+
+{
+  "home": [
+    { "name": "선수이름", "score": 평점숫자, "comment": "한줄 비평" }
+  ],
+  "away": [
+    { "name": "선수이름", "score": 평점숫자, "comment": "한줄 비평" }
+  ],
+  "summary": "경기 종합 한줄 요약평"
+}
+`;
+
+      try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: promptText }]
+            }]
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`API 요청 실패 (Status: ${response.status})`);
+        }
+
+        const resData = await response.json();
+        let rawText = resData.candidates[0].content.parts[0].text;
+        
+        // JSON 파싱용 정제 (백텍 제거 등)
+        rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+        const parsed = JSON.parse(rawText);
+
+        renderAiRatings(parsed);
+      } catch (err) {
+        console.error(err);
+        alert(`Gemini 호출에 실패했습니다: ${err.message}. API 키나 응답 형식을 확인해 주세요.`);
+        document.getElementById("btn-ai-rate").disabled = false;
+      } finally {
+        document.getElementById("ai-loading").style.display = "none";
+      }
+    }
+
+    // AI 결과 렌더링
+    function renderAiRatings(data) {
+      const container = document.getElementById("ai-rating-container");
+      container.innerHTML = "";
+
+      // 홈팀 레이아웃 생성
+      const homeDiv = document.createElement("div");
+      homeDiv.className = "rating-list";
+      homeDiv.innerHTML = `<div class="rating-header">🏠 ${document.getElementById("sb-home-name").innerText} 평점</div>`;
+      data.home.forEach(p => {
+        homeDiv.innerHTML += `
+          <div style="margin-bottom: 6px;">
+            <div class="rating-row">
+              <span>${p.name}</span>
+              <span class="rating-score">${p.score.toFixed(1)}</span>
+            </div>
+            <div class="rating-comment">${p.comment}</div>
+          </div>
+        `;
+      });
+
+      // 어웨이팀 레이아웃 생성
+      const awayDiv = document.createElement("div");
+      awayDiv.className = "rating-list";
+      awayDiv.innerHTML = `<div class="rating-header">✈️ ${document.getElementById("sb-away-name").innerText} 평점</div>`;
+      data.away.forEach(p => {
+        awayDiv.innerHTML += `
+          <div style="margin-bottom: 6px;">
+            <div class="rating-row">
+              <span>${p.name}</span>
+              <span class="rating-score">${p.score.toFixed(1)}</span>
+            </div>
+            <div class="rating-comment">${p.comment}</div>
+          </div>
+        `;
+      });
+
+      container.appendChild(homeDiv);
+      container.appendChild(awayDiv);
+
+      document.getElementById("ai-match-summary").innerHTML = `<strong>🏆 AI 전술 논평:</strong> ${data.summary}`;
+      
+      document.getElementById("ai-results-sec").style.display = "block";
+      document.getElementById("btn-ai-rate").disabled = false;
+    }
+  </script>
+</body>
+</html>

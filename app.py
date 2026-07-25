@@ -8,7 +8,7 @@ import os
 import time
 
 # FIFA 랭킹 및 스쿼드 데이터 임포트
-from data import TEAMS
+from team_generator import ALL_TEAMS as TEAMS, ALL_CL_TEAMS as CL_TEAMS
 
 # 페이지 기본 설정 및 다크 테마 주입
 st.set_page_config(
@@ -139,8 +139,9 @@ def get_rankings_df():
 
 # --- 경기 시뮬레이션 엔진 ---
 def simulate_match_score(team1_code, team2_code):
-    t1 = TEAMS[team1_code]
-    t2 = TEAMS[team2_code]
+    teams_dict = TEAMS if st.session_state.get("tournament_mode", "worldcup") == "worldcup" else CL_TEAMS
+    t1 = teams_dict[team1_code]
+    t2 = teams_dict[team2_code]
     diff = t1["points"] - t2["points"]
     
     # 기본 골 범위 설정 (평균 1.3골 수준)
@@ -302,20 +303,26 @@ with tab1:
 # 탭 2: 월드컵 2026 모드 플레이
 # ==========================================
 with tab2:
+    if "tournament_mode" not in st.session_state:
+        st.session_state.tournament_mode = "worldcup"
+    CURRENT_TEAMS = TEAMS if st.session_state.tournament_mode == "worldcup" else CL_TEAMS
+    
     # ----------------------------------------
     # 2D 축구 경기 플레이용 Iframe 렌더러 함수
     # ----------------------------------------
     def render_active_game_iframe(user_code, opp_code, match_type="group", match_idx=None, bracket_round=None):
-        u_team = TEAMS[user_code]
-        o_team = TEAMS[opp_code]
+        u_team = CURRENT_TEAMS[user_code]
+        o_team = CURRENT_TEAMS[opp_code]
         
-        st.markdown(f'<div class="glass-card" style="text-align: center;"><h3>🎮 매치 시작: {u_team["name"]} vs {o_team["name"]}</h3><p>방향키(이동)와 스페이스바(슛)를 눌러 경기를 끝까지 직접 플레이하세요!</p></div>', unsafe_allow_html=True)
+        desc = "방향키(이동)와 S/W/A/D/E(패스, 슛, 달리기)를 활용해 경기를 지배하세요!" if st.session_state.tournament_mode == "champions" else "방향키(이동)와 스페이스바(슛)를 눌러 경기를 끝까지 직접 플레이하세요!"
+        st.markdown(f'<div class="glass-card" style="text-align: center;"><h3>🎮 매치 시작: {u_team["name"]} vs {o_team["name"]}</h3><p>{desc}</p></div>', unsafe_allow_html=True)
         
         # 컴포넌트 선언 및 호출
         parent_dir = os.path.dirname(os.path.abspath(__file__))
         build_dir = os.path.join(parent_dir, "game_component")
         soccer_game = components.declare_component("soccer_game", path=build_dir)
         
+        frame_height = 635 if st.session_state.tournament_mode == "champions" else 535
         game_result = soccer_game(
             user_team=u_team["name"],
             opponent_team=o_team["name"],
@@ -326,6 +333,8 @@ with tab2:
             match_type=match_type,
             user_points=u_team["points"],
             opponent_points=o_team["points"],
+            tournament_mode=st.session_state.tournament_mode,
+            height=frame_height,
             key=f"playable_match_{user_code}_{opp_code}_{match_idx}_{bracket_round}"
         )
         
@@ -445,7 +454,7 @@ with tab2:
                     winner = pk["user_code"] if user_sc > opp_sc else pk["opp_code"]
 
         if winner:
-            st.success(f"승부차기 종료! 최종 승자: {TEAMS[winner]['name']}")
+            st.success(f"승부차기 종료! 최종 승자: {CURRENT_TEAMS[winner]['name']}")
             if st.button("토너먼트 대진 결과 등록"):
                 # 토너먼트 매치 결과 업데이트
                 round_name = pk["round"]
@@ -473,67 +482,244 @@ with tab2:
                 pk["step"] += 1
                 st.rerun()
 
-    # ----------------------------------------
-    # 월드컵 상태 머신 분기
-    # ----------------------------------------
-    
-    # 1. 월드컵 시작 전 (국가 선택 및 조 추첨 버튼)
+    # 1. 월드컵/챔피언스리그 시작 전 (대회 선택, 국가/클럽 선택, 조 추첨 방식)
     if st.session_state.tournament_step == "not_started":
-        st.markdown('<div class="glass-card"><h3>🏆 월드컵 2026 모드 시작</h3><p>플레이어로 참가할 국가를 선택하고 조 추첨을 시작해 보세요.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="glass-card"><h3>🏆 토너먼트 시뮬레이터 시작</h3><p>대회 모드와 조 추첨 방식을 선택하고 플레이를 시작해 보세요.</p></div>', unsafe_allow_html=True)
         
-        user_choice = st.selectbox("참가 국가 선택", options=list(TEAMS.keys()), format_func=lambda k: f"{TEAMS[k]['name']} (FIFA {TEAMS[k]['rank']}위)")
+        # 대회 유형 선택
+        tournament_mode = st.radio("🏆 대회 모드 선택", ["🏆 월드컵 2026 (48개국)", "🇪🇺 UEFA 챔피언스 리그 (32개 클럽)"], horizontal=True)
+        st.session_state.tournament_mode = "worldcup" if "월드컵" in tournament_mode else "champions"
         
-        if st.button("🎲 조 추첨 시작", type="primary", use_container_width=True):
-            st.session_state.user_team = user_choice
+        CURRENT_TEAMS = TEAMS if st.session_state.tournament_mode == "worldcup" else CL_TEAMS
+        
+        # 참가 팀 선택
+        user_choice = st.selectbox(
+            "참가 팀 선택", 
+            options=list(CURRENT_TEAMS.keys()), 
+            format_func=lambda k: f"{CURRENT_TEAMS[k]['name']} (FIFA {CURRENT_TEAMS[k]['rank']}위 / OVR {CURRENT_TEAMS[k]['points']})" if st.session_state.tournament_mode == "worldcup" else f"{CURRENT_TEAMS[k]['name']} (OVR {CURRENT_TEAMS[k]['points']})"
+        )
+        
+        # 조 추첨 방식
+        draw_mode = st.radio("조 편성 방식 선택", ["🎲 자동 무작위 조 추첨", "🔮 조 추첨식 직접 진행"], horizontal=True)
+        
+        # 참가 팀 목록 구성 (사용자가 선택한 팀을 반드시 포함하고, 나머지는 랭킹 순으로 참가 채움)
+        expected_size = 48 if st.session_state.tournament_mode == "worldcup" else 32
+        all_codes = list(CURRENT_TEAMS.keys())
+        
+        participating = [user_choice]
+        other_codes = [c for c in all_codes if c != user_choice]
+        other_codes_sorted = sorted(other_codes, key=lambda k: CURRENT_TEAMS[k]["rank"])
+        participating.extend(other_codes_sorted[:expected_size - 1])
+        
+        # 참가하는 팀들을 랭킹순 정렬하여 포트 분할
+        sorted_codes = sorted(participating, key=lambda k: CURRENT_TEAMS[k]["rank"])
+        
+        pot_size = 12 if st.session_state.tournament_mode == "worldcup" else 8
+        pot1 = sorted_codes[0:pot_size]
+        pot2 = sorted_codes[pot_size:2*pot_size]
+        pot3 = sorted_codes[2*pot_size:3*pot_size]
+        pot4 = sorted_codes[3*pot_size:4*pot_size]
+        
+        group_letters = [chr(i) for i in range(ord('A'), ord('L')+1)] if st.session_state.tournament_mode == "worldcup" else [chr(i) for i in range(ord('A'), ord('H')+1)]
+        
+        if draw_mode == "🔮 조 추첨식 직접 진행":
+            # 세션 상태 변수 초기화
+            if "draw_idx" not in st.session_state or st.session_state.get("last_draw_mode") != st.session_state.tournament_mode:
+                st.session_state.last_draw_mode = st.session_state.tournament_mode
+                st.session_state.draw_idx = 0
+                st.session_state.draw_pots = {
+                    1: pot1.copy(),
+                    2: pot2.copy(),
+                    3: pot3.copy(),
+                    4: pot4.copy()
+                }
+                st.session_state.draw_groups = {gn: [] for gn in group_letters}
+                st.session_state.draw_history = []
+                st.session_state.last_drawn_team = None
+                st.session_state.last_drawn_group = None
             
-            # 4개 포트로 국가 배분
-            sorted_codes = sorted(list(TEAMS.keys()), key=lambda k: TEAMS[k]["rank"])
-            pot1 = sorted_codes[0:12]
-            pot2 = sorted_codes[12:24]
-            pot3 = sorted_codes[24:36]
-            pot4 = sorted_codes[36:48]
+            draw_idx = st.session_state.draw_idx
+            draw_pots = st.session_state.draw_pots
+            draw_groups = st.session_state.draw_groups
             
-            random.shuffle(pot1)
-            random.shuffle(pot2)
-            random.shuffle(pot3)
-            random.shuffle(pot4)
+            total_teams = 48 if st.session_state.tournament_mode == "worldcup" else 32
+            group_count = 12 if st.session_state.tournament_mode == "worldcup" else 8
             
-            # A조부터 L조까지 조 할당
-            group_names = [chr(i) for i in range(ord('A'), ord('L')+1)] # A to L
-            groups = {gn: [] for gn in group_names}
+            # 상단 현황판 및 조작부
+            st.write("---")
+            st.markdown("### 🔮 실시간 대화형 조 추첨식")
             
-            for i, gn in enumerate(group_names):
-                groups[gn] = [pot1[i], pot2[i], pot3[i], pot4[i]]
+            # 방금 추첨된 팀 효과 카드
+            if st.session_state.last_drawn_team:
+                team_info = CURRENT_TEAMS[st.session_state.last_drawn_team]
+                team_name = team_info["name"]
+                team_group = st.session_state.last_drawn_group
+                team_color = team_info.get("primary_color", "#38bdf8")
                 
-            st.session_state.groups = groups
+                st.markdown(f"""
+                    <div style="text-align:center; padding: 1.5rem; background: rgba(255,255,255,0.05); border-radius: 12px; margin-bottom: 1.5rem; border: 2px solid {team_color}; box-shadow: 0 0 15px {team_color}33;">
+                        <span style="font-size:1.1rem; color:#94a3b8; font-weight:bold;">🔥 방금 추첨된 팀</span>
+                        <h2 style="margin: 0.5rem 0; color:#FFFFFF; font-size:2.2rem; font-weight:800; text-shadow: 0 0 10px {team_color};">⚽ {team_name}</h2>
+                        <span style="font-size:1.4rem; font-weight:900; color:#10b981;">👉 Group {team_group}조 배치!</span>
+                    </div>
+                """, unsafe_allow_html=True)
             
-            # 조별리그 경기 일정 생성 (라운드 로빈)
-            group_matches = []
-            for gn, teams in groups.items():
-                # 각 조당 6경기
-                match_indices = [
-                    (0, 1), (2, 3), # 라운드 1
-                    (0, 2), (1, 3), # 라운드 2
-                    (0, 3), (1, 2)  # 라운드 3
-                ]
-                for idx, (t1, t2) in enumerate(match_indices):
-                    group_matches.append({
-                        "group": gn,
-                        "team1": teams[t1],
-                        "team2": teams[t2],
-                        "score1": None,
-                        "score2": None,
-                        "played": False,
-                        "round": (idx // 2) + 1
-                    })
+            # 버튼 조작부
+            col_btn1, col_btn2 = st.columns(2)
             
-            st.session_state.group_matches = group_matches
-            st.session_state.tournament_step = "group_stage"
-            st.rerun()
+            if draw_idx < total_teams:
+                # 활성 포트
+                active_pot_num = (draw_idx // group_count) + 1
+                active_group_letter = group_letters[draw_idx % group_count]
+                
+                with col_btn1:
+                    if st.button(f"🔮 포트 {active_pot_num}에서 다음 팀 추첨하기", type="primary", use_container_width=True):
+                        # 랜덤 추첨
+                        pot_list = draw_pots[active_pot_num]
+                        drawn_code = random.choice(pot_list)
+                        
+                        # 상태 업데이트
+                        pot_list.remove(drawn_code)
+                        draw_groups[active_group_letter].append(drawn_code)
+                        st.session_state.draw_history.append(f"🗳️ [Port {active_pot_num}] {CURRENT_TEAMS[drawn_code]['name']} -> Group {active_group_letter}")
+                        
+                        st.session_state.last_drawn_team = drawn_code
+                        st.session_state.last_drawn_group = active_group_letter
+                        st.session_state.draw_idx += 1
+                        st.rerun()
+                
+                with col_btn2:
+                    if st.button("⚡ 남은 모든 팀 일괄 추첨", use_container_width=True):
+                        # 남은 과정 자동 일괄 진행
+                        while st.session_state.draw_idx < total_teams:
+                            d_idx = st.session_state.draw_idx
+                            p_num = (d_idx // group_count) + 1
+                            g_let = group_letters[d_idx % group_count]
+                            
+                            pot_list = draw_pots[p_num]
+                            drawn_code = random.choice(pot_list)
+                            
+                            pot_list.remove(drawn_code)
+                            draw_groups[g_let].append(drawn_code)
+                            st.session_state.draw_history.append(f"🗳️ [Port {p_num}] {CURRENT_TEAMS[drawn_code]['name']} -> Group {g_let}")
+                            
+                            st.session_state.last_drawn_team = drawn_code
+                            st.session_state.last_drawn_group = g_let
+                            st.session_state.draw_idx += 1
+                        st.rerun()
+            else:
+                # 추첨 완료
+                st.success("✅ 모든 팀의 조 추첨식이 성공적으로 완료되었습니다!")
+                
+                if st.button("🏆 대회 개막 및 조별리그 시작", type="primary", use_container_width=True):
+                    st.session_state.user_team = user_choice
+                    st.session_state.groups = draw_groups.copy()
+                    
+                    # 경기 일정 구성
+                    group_matches = []
+                    for gn, teams in st.session_state.groups.items():
+                        match_indices = [(0,1), (2,3), (0,2), (1,3), (0,3), (1,2)]
+                        for m_i, (t1_idx, t2_idx) in enumerate(match_indices):
+                            group_matches.append({
+                                "group": gn,
+                                "round": (m_i // 2) + 1,
+                                "team1": teams[t1_idx],
+                                "team2": teams[t2_idx],
+                                "score1": None,
+                                "score2": None,
+                                "played": False
+                            })
+                    st.session_state.group_matches = group_matches
+                    st.session_state.tournament_step = "group_stage"
+                    
+                    # 추첨 세션 상태들 청소
+                    if "draw_idx" in st.session_state: del st.session_state.draw_idx
+                    if "draw_pots" in st.session_state: del st.session_state.draw_pots
+                    if "draw_groups" in st.session_state: del st.session_state.draw_groups
+                    if "draw_history" in st.session_state: del st.session_state.draw_history
+                    if "last_drawn_team" in st.session_state: del st.session_state.last_drawn_team
+                    if "last_drawn_group" in st.session_state: del st.session_state.last_drawn_group
+                    st.rerun()
+            
+            # 포트 잔여 팀 상황판 시각화
+            st.markdown("#### 📦 포트별 미추첨 리스트")
+            col_p1, col_p2, col_p3, col_p4 = st.columns(4)
+            with col_p1:
+                st.write("**Pot 1**")
+                p1_names = [CURRENT_TEAMS[c]["name"] for c in draw_pots[1]]
+                st.caption(", ".join(p1_names) if p1_names else "추첨 완료")
+            with col_p2:
+                st.write("**Pot 2**")
+                p2_names = [CURRENT_TEAMS[c]["name"] for c in draw_pots[2]]
+                st.caption(", ".join(p2_names) if p2_names else "추첨 완료")
+            with col_p3:
+                st.write("**Pot 3**")
+                p3_names = [CURRENT_TEAMS[c]["name"] for c in draw_pots[3]]
+                st.caption(", ".join(p3_names) if p3_names else "추첨 완료")
+            with col_p4:
+                st.write("**Pot 4**")
+                p4_names = [CURRENT_TEAMS[c]["name"] for c in draw_pots[4]]
+                st.caption(", ".join(p4_names) if p4_names else "추첨 완료")
+            
+            # 실시간 조별 채우기 현황 시각화
+            st.markdown("#### 📋 실시간 조별 배치 현황")
+            cols_g = st.columns(3 if st.session_state.tournament_mode == "worldcup" else 4)
+            for idx, gn in enumerate(group_letters):
+                col_idx = idx % (3 if st.session_state.tournament_mode == "worldcup" else 4)
+                with cols_g[col_idx]:
+                    st.markdown(f"**Group {gn}**")
+                    teams_in_group = draw_groups[gn]
+                    for slot_idx in range(4):
+                        if slot_idx < len(teams_in_group):
+                            team_code = teams_in_group[slot_idx]
+                            st.write(f"Slot {slot_idx+1}: **{CURRENT_TEAMS[team_code]['name']}**")
+                        else:
+                            st.write(f"Slot {slot_idx+1}: *대기 중*")
+            
+            # 최근 조 추첨 로그 5개 노출
+            if st.session_state.draw_history:
+                st.write("---")
+                st.markdown("##### 📜 최근 조 추첨 역사")
+                for log in reversed(st.session_state.draw_history[-5:]):
+                    st.caption(log)
+                    
+        else:
+            # 자동 무작위 조 추첨
+            if st.button("🎲 조 추첨 및 대회 개막", type="primary", use_container_width=True):
+                st.session_state.user_team = user_choice
+                
+                p1_shuf = pot1.copy()
+                p2_shuf = pot2.copy()
+                p3_shuf = pot3.copy()
+                p4_shuf = pot4.copy()
+                random.shuffle(p1_shuf)
+                random.shuffle(p2_shuf)
+                random.shuffle(p3_shuf)
+                random.shuffle(p4_shuf)
+                
+                groups = {gn: [p1_shuf[i], p2_shuf[i], p3_shuf[i], p4_shuf[i]] for i, gn in enumerate(group_letters)}
+                st.session_state.groups = groups
+                
+                group_matches = []
+                for gn, teams in groups.items():
+                    match_indices = [(0,1), (2,3), (0,2), (1,3), (0,3), (1,2)]
+                    for m_i, (t1_idx, t2_idx) in enumerate(match_indices):
+                        group_matches.append({
+                            "group": gn,
+                            "round": (m_i // 2) + 1,
+                            "team1": teams[t1_idx],
+                            "team2": teams[t2_idx],
+                            "score1": None,
+                            "score2": None,
+                            "played": False
+                        })
+                st.session_state.group_matches = group_matches
+                st.session_state.tournament_step = "group_stage"
+                st.rerun()
 
     # 2. 조별 리그 진행 중
     elif st.session_state.tournament_step == "group_stage":
-        st.markdown(f'<div class="glass-card"><h3>⚽ 조별 리그 진행 중 (참가국: {TEAMS[st.session_state.user_team]["name"]})</h3></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="glass-card"><h3>⚽ 조별 리그 진행 중 (선택 팀: {CURRENT_TEAMS[st.session_state.user_team]["name"]})</h3></div>', unsafe_allow_html=True)
         
         # 조별 리그 경기 수동 플레이 모드 실행 중인 경우
         if st.session_state.active_playable_match:
@@ -591,7 +777,7 @@ with tab2:
                             prefix = "✅" if rank < 2 else "⏳"
                             data_rows.append({
                                 "순위": f"{prefix} {rank+1}",
-                                "국가": TEAMS[team_code]["name"],
+                                "팀": CURRENT_TEAMS[team_code]["name"],
                                 "경기": stats["mp"],
                                 "승": stats["w"],
                                 "무": stats["d"],
@@ -626,9 +812,65 @@ with tab2:
                 with col_sim2:
                     # 모든 조별 예선 종료 시 다음으로 버튼 활성화
                     if unplayed_count == 0:
-                        if st.button("⏩ 조별 예선 종료 (와일드카드 단계로)", type="primary", use_container_width=True):
-                            st.session_state.tournament_step = "wildcard"
-                            st.rerun()
+                        if st.session_state.tournament_mode == "worldcup":
+                            if st.button("⏩ 조별 예선 종료 (와일드카드 단계로)", type="primary", use_container_width=True):
+                                st.session_state.tournament_step = "wildcard"
+                                st.rerun()
+                        else:
+                            if st.button("⏩ 조별 예선 종료 (16강 결선 토너먼트로)", type="primary", use_container_width=True):
+                                group_winners = []
+                                group_runners_up = []
+                                for gn in sorted(list(st.session_state.groups.keys())):
+                                    stands = {t: {"points": 0, "gd": 0, "gs": 0} for t in st.session_state.groups[gn]}
+                                    for m in st.session_state.group_matches:
+                                        if m["group"] == gn and m["played"]:
+                                            t1, t2 = m["team1"], m["team2"]
+                                            s1, s2 = m["score1"], m["score2"]
+                                            if s1 > s2:
+                                                stands[t1]["points"] += 3
+                                                stands[t1]["gd"] += (s1 - s2)
+                                                stands[t2]["gd"] += (s2 - s1)
+                                                stands[t1]["gs"] += s1
+                                                stands[t2]["gs"] += s2
+                                            elif s1 < s2:
+                                                stands[t2]["points"] += 3
+                                                stands[t2]["gd"] += (s2 - s1)
+                                                stands[t1]["gd"] += (s1 - s2)
+                                                stands[t2]["gs"] += s2
+                                                stands[t1]["gs"] += s1
+                                            else:
+                                                stands[t1]["points"] += 1
+                                                stands[t2]["points"] += 1
+                                                stands[t1]["gd"] += (s1 - s2)
+                                                stands[t2]["gd"] += (s2 - s1)
+                                                stands[t1]["gs"] += s1
+                                                stands[t2]["gs"] += s2
+                                    sorted_stands = sorted(stands.items(), key=lambda x: (x[1]["points"], x[1]["gd"], x[1]["gs"]), reverse=True)
+                                    group_winners.append(sorted_stands[0][0])
+                                    group_runners_up.append(sorted_stands[1][0])
+                                
+                                # A1 vs B2, B1 vs A2, C1 vs D2, D1 vs C2, E1 vs F2, F1 vs E2, G1 vs H2, H1 vs G2
+                                bracket_16 = []
+                                pairing = [(0, 1), (1, 0), (2, 3), (3, 2), (4, 5), (5, 4), (6, 7), (7, 6)]
+                                for w_idx, r_idx in pairing:
+                                    bracket_16.append({
+                                        "team1": group_winners[w_idx],
+                                        "team2": group_runners_up[r_idx],
+                                        "score1": None,
+                                        "score2": None,
+                                        "winner": None,
+                                        "played": False
+                                    })
+                                
+                                st.session_state.bracket_matches = {
+                                    "16강": bracket_16,
+                                    "8강": [],
+                                    "4강": [],
+                                    "결승": []
+                                }
+                                st.session_state.current_knockout_round = "16강"
+                                st.session_state.tournament_step = "knockout"
+                                st.rerun()
                 
                 # 경기 목록 표시
                 st.write("---")
@@ -642,12 +884,12 @@ with tab2:
                     else:
                         other_matches.append(item)
                 
-                st.markdown("##### 🔴 우리 국가 대표팀 경기 (직접 플레이 필수)")
+                st.markdown("##### 🔴 우리 팀 경기 (직접 플레이 필수)")
                 for item in user_matches:
                     m = item["data"]
                     idx = item["idx"]
-                    t1_name = TEAMS[m["team1"]]["name"]
-                    t2_name = TEAMS[m["team2"]]["name"]
+                    t1_name = CURRENT_TEAMS[m["team1"]]["name"]
+                    t2_name = CURRENT_TEAMS[m["team2"]]["name"]
                     
                     if m["played"]:
                         st.markdown(f'<div class="standing-card">🏆 <b>[R{m["round"]}]</b> {t1_name} <b>{m["score1"]} : {m["score2"]}</b> {t2_name} (완료)</div>', unsafe_allow_html=True)
@@ -668,8 +910,8 @@ with tab2:
                 for item in other_matches[:10]: # 10개만 리스트에 표시
                     m = item["data"]
                     idx = item["idx"]
-                    t1_name = TEAMS[m["team1"]]["name"]
-                    t2_name = TEAMS[m["team2"]]["name"]
+                    t1_name = CURRENT_TEAMS[m["team1"]]["name"]
+                    t2_name = CURRENT_TEAMS[m["team2"]]["name"]
                     
                     if m["played"]:
                         st.markdown(f'<div style="font-size:0.9rem; margin-bottom:4px;">Group {m["group"]} R{m["round"]}: {t1_name} {m["score1"]} - {m["score2"]} {t2_name}</div>', unsafe_allow_html=True)
@@ -744,7 +986,7 @@ with tab2:
                 "순위": i + 1,
                 "결과": prefix,
                 "조": f"Group {item['group']}",
-                "국가": TEAMS[item["team_code"]]["name"],
+                "팀": TEAMS[item["team_code"]]["name"],
                 "승점": item["points"],
                 "득실차": item["gd"],
                 "득점": item["gs"]
@@ -863,8 +1105,8 @@ with tab2:
                 
                 # 모든 매치 정보 루프 돌며 그리기
                 for idx, m in enumerate(matches):
-                    t1_name = TEAMS[m["team1"]]["name"]
-                    t2_name = TEAMS[m["team2"]]["name"]
+                    t1_name = CURRENT_TEAMS[m["team1"]]["name"]
+                    t2_name = CURRENT_TEAMS[m["team2"]]["name"]
                     
                     is_user_match = m["team1"] == st.session_state.user_team or m["team2"] == st.session_state.user_team
                     card_border = "border: 2px solid #ff4b4b;" if is_user_match else ""
@@ -978,36 +1220,44 @@ with tab2:
                             st.rerun()
 
                 # 사용자 생존 여부 메시지
+                team_suffix = "대표팀" if st.session_state.tournament_mode == "worldcup" else "클럽팀"
+                other_suffix = "다른 국가들의" if st.session_state.tournament_mode == "worldcup" else "다른 클럽들의"
                 if user_alive:
-                    st.info(f"👍 {TEAMS[st.session_state.user_team]['name']} 대표팀이 아직 토너먼트에 생존해 있습니다!")
+                    st.info(f"👍 {CURRENT_TEAMS[st.session_state.user_team]['name']} {team_suffix}이 아직 토너먼트에 생존해 있습니다!")
                 else:
-                    st.warning(f"❌ {TEAMS[st.session_state.user_team]['name']} 대표팀은 아쉽게도 탈락했습니다. 다른 국가들의 토너먼트 시뮬레이션을 끝까지 확인하세요!")
+                    st.warning(f"❌ {CURRENT_TEAMS[st.session_state.user_team]['name']} {team_suffix}은 아쉽게도 탈락했습니다. {other_suffix} 토너먼트 시뮬레이션을 끝까지 확인하세요!")
 
-    # 5. 월드컵 토너먼트 종료
+    # 5. 토너먼트 종료
     elif st.session_state.tournament_step == "completed":
-        st.markdown('<div class="glass-card" style="text-align:center;"><h2>🏆 월드컵 최종 우승팀 탄생 🏆</h2></div>', unsafe_allow_html=True)
+        mode_title = "월드컵" if st.session_state.tournament_mode == "worldcup" else "챔피언스 리그"
+        st.markdown(f'<div class="glass-card" style="text-align:center;"><h2>🏆 {mode_title} 최종 우승팀 탄생 🏆</h2></div>', unsafe_allow_html=True)
         
         final_match = st.session_state.bracket_matches["결승"][0]
         champion_code = final_match["winner"]
-        champion_name = TEAMS[champion_code]["name"]
+        champion_name = CURRENT_TEAMS[champion_code]["name"]
+        
+        champion_prefix = "2026 FIFA World Cup" if st.session_state.tournament_mode == "worldcup" else "UEFA Champions League"
         
         # 화려한 챔피언 배너 및 모달 효과 연출용 카드
         st.markdown(f"""
             <div style="text-align: center; margin: 2rem 0;">
                 <span style="font-size: 5rem;">👑</span>
                 <h1 style="color: #FFD700; font-size: 4rem; font-weight: 800; text-shadow: 0 0 20px rgba(255,215,0,0.5);">{champion_name}</h1>
-                <p style="font-size: 1.5rem; color: #475569;">2026 FIFA World Cup 우승을 축하합니다!</p>
+                <p style="font-size: 1.5rem; color: #475569;">{champion_prefix} 우승을 축하합니다!</p>
             </div>
         """, unsafe_allow_html=True)
         
         # 다시 시작 버튼
-        if st.button("🔄 새로운 월드컵 시뮬레이션 시작", type="primary", use_container_width=True):
+        btn_label = "🔄 새로운 월드컵 시뮬레이션 시작" if st.session_state.tournament_mode == "worldcup" else "🔄 새로운 챔피언스 리그 시뮬레이션 시작"
+        if st.button(btn_label, type="primary", use_container_width=True):
             st.session_state.tournament_step = "not_started"
             st.session_state.user_team = None
             st.session_state.groups = {}
             st.session_state.group_matches = []
             st.session_state.bracket_matches = {}
-            st.session_state.current_knockout_round = "32강"
+            st.session_state.current_knockout_round = "32강" if st.session_state.tournament_mode == "worldcup" else "16강"
             st.session_state.active_playable_match = None
             st.session_state.penalty_shootout = None
             st.rerun()
+
+
