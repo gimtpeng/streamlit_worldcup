@@ -45,6 +45,15 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
+    // 마우스 클릭 시 키보드 포커스 획득
+    canvas.addEventListener('click', () => {
+      canvas.focus();
+    });
+    window.addEventListener('click', () => {
+      canvas.focus();
+    });
+    canvas.focus();
+
     // 키보드 입력 방지용 리스트 (화면 스크롤 방지)
     const PREVENT_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", " ", "w", "s", "a", "d", "e", "f", "q", "z"];
     window.addEventListener('keydown', function (e) {
@@ -986,23 +995,17 @@
           }
         }
       } else {
-        if (isCL) {
-          if (keys['arrowup']) py -= 1;
-          if (keys['arrowdown']) py += 1;
-          if (keys['arrowleft']) px -= 1;
-          if (keys['arrowright']) px += 1;
-        } else {
-          // 기존 조작 모드 (WASD 지원)
-          if (keys['arrowup'] || keys['w']) py -= 1;
-          if (keys['arrowdown'] || keys['s']) py += 1;
-          if (keys['arrowleft'] || keys['a']) px -= 1;
-          if (keys['arrowright'] || keys['d']) px += 1;
+        // 모든 모드에서 방향키(Arrow) 및 WASD 이동 지원
+        if (keys['arrowup'] || keys['w']) py -= 1;
+        if (keys['arrowdown'] || keys['s']) py += 1;
+        if (keys['arrowleft'] || keys['a']) px -= 1;
+        if (keys['arrowright'] || keys['d']) px += 1;
 
-          // 기존 슛 트리거
-          if ((keys['space'] || keys[' ']) && ball.owner === controlledUserPlayer) {
-            executeShoot("normal");
-          }
+        // 모든 모드에서 스페이스바 슛 지원
+        if ((keys['space'] || keys[' ']) && ball.owner === controlledUserPlayer) {
+          executeShoot("normal");
         }
+      }
 
         // 정규화 및 이동력 계산
         if (px !== 0 && py !== 0) {
