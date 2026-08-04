@@ -322,6 +322,14 @@ with tab2:
         build_dir = os.path.join(parent_dir, "game_component")
         soccer_game = components.declare_component("soccer_game", path=build_dir)
         
+        # 유저 팀 및 상대 팀 라인업 명단 추출 및 직렬화
+        import json
+        user_lineup_names = [p.get("name", "선수") for p in u_team.get("lineup", [])]
+        user_lineup_json = json.dumps(user_lineup_names)
+        
+        opponent_lineup_names = [p.get("name", "선수") for p in o_team.get("lineup", [])]
+        opponent_lineup_json = json.dumps(opponent_lineup_names)
+
         frame_height = 635 if st.session_state.tournament_mode == "champions" else 535
         game_result = soccer_game(
             user_team=u_team["name"],
@@ -334,6 +342,8 @@ with tab2:
             user_points=u_team["points"],
             opponent_points=o_team["points"],
             tournament_mode=st.session_state.tournament_mode,
+            user_lineup=user_lineup_json,
+            opponent_lineup=opponent_lineup_json,
             height=frame_height,
             key=f"playable_match_{user_code}_{opp_code}_{match_idx}_{bracket_round}"
         )

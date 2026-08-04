@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
   <meta charset="UTF-8">
   <title>2D Football Mini Game</title>
@@ -15,6 +16,7 @@
       align-items: center;
       height: 100vh;
     }
+
     #game-container {
       position: relative;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -22,15 +24,18 @@
       overflow: hidden;
       background: #111;
     }
+
     canvas {
       display: block;
       background-color: #2e7d32;
     }
+
     canvas:focus {
       outline: none;
     }
   </style>
 </head>
+
 <body>
   <div id="game-container">
     <canvas id="gameCanvas" width="800" height="500" tabindex="1"></canvas>
@@ -42,7 +47,7 @@
 
     // 키보드 입력 방지용 리스트 (화면 스크롤 방지)
     const PREVENT_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", " ", "w", "s", "a", "d", "e", "f", "q", "z"];
-    window.addEventListener('keydown', function(e) {
+    window.addEventListener('keydown', function (e) {
       if (PREVENT_KEYS.includes(e.key.toLowerCase()) || PREVENT_KEYS.includes(e.key)) {
         e.preventDefault();
       }
@@ -56,7 +61,7 @@
     let opponentColor = "#000000";
     let userTextColor = "#FFFFFF";
     let opponentTextColor = "#FFFFFF";
-    
+
     // 추가 능력치 및 매치타입 변수
     let matchType = "group";
     let userPoints = 1600;
@@ -66,13 +71,13 @@
     let score = { user: 0, opponent: 0 };
     let timeLeft = 30.0; // 30초 경기
     let lastTime = 0;
-    
+
     // 연장전 & 승부차기 관련 변수
     let isExtraTime = false;
     const extraTimeDuration = 15.0; // 연장전 15초
     let transitionTimer = 0;
     let transitionType = ""; // "extratime", "penalty"
-    
+
     // 승부차기 관련 변수
     let penaltyScore = { user: 0, opponent: 0 };
     let penaltyKicks = { user: [], opponent: [] }; // true: 골, false: 노골/선방
@@ -88,6 +93,21 @@
 
     // 플레이어 공 소유 제한 타이머 (초)
     let playerPossessionTimer = 10.0;
+
+    // 레이저 슈터 및 라인업 관련 변수
+    let userLineup = ["손흥민", "황희찬", "이강인", "황인범", "조규성", "이재성", "설영우", "김민재", "김영권", "김진수", "조현우"];
+    let opponentLineup = ["GK", "LB", "LCB", "RCB", "RB", "LDM", "RDM", "AM", "LW", "ST", "RW"];
+    let laserShooterIndex = 0;
+    let laserShooterName = "";
+
+    // 골 세레머니 및 슬로우모션 리플레이 관련 변수
+    let historyBuffer = [];
+    let celebrationTimer = 0;
+    let celebrationScorer = null;
+    let celebrationTeam = "user";
+    let replayIndex = 0;
+    let particles = [];
+    let lastShotScorer = null;
 
     // 게임 객체 정의
     const field = {
@@ -157,20 +177,27 @@
       const W = canvas.width;
       const H = canvas.height;
 
+      // userLineup의 개수가 충분한지 보장
+      while (userLineup.length < 11) {
+        userLineup.push("선수 " + (userLineup.length + 1));
+      }
+
+      laserShooterName = userLineup[laserShooterIndex] || userLineup[0];
+
       if (isCL) {
         // 11 vs 11 명단 구성 (비율 배분으로 대형 구장 자동 밸런싱)
         const userPositions = [
-          { pos: "GK", name: "GK", number: 1, x: 50, y: H / 2, speed: goalkeeper.speed },
-          { pos: "DF", name: "LB", number: 3, x: W * 0.25, y: H * 0.18, speed: player.speed * 0.85 },
-          { pos: "DF", name: "LCB", number: 4, x: W * 0.20, y: H * 0.36, speed: player.speed * 0.8 },
-          { pos: "DF", name: "RCB", number: 5, x: W * 0.20, y: H * 0.64, speed: player.speed * 0.8 },
-          { pos: "DF", name: "RB", number: 2, x: W * 0.25, y: H * 0.82, speed: player.speed * 0.85 },
-          { pos: "MF", name: "LDM", number: 6, x: W * 0.42, y: H * 0.30, speed: player.speed * 0.9 },
-          { pos: "MF", name: "RDM", number: 8, x: W * 0.42, y: H * 0.70, speed: player.speed * 0.9 },
-          { pos: "MF", name: "AM", number: 10, x: W * 0.58, y: H / 2, speed: player.speed * 0.95 },
-          { pos: "FW", name: "LW", number: 11, x: W * 0.72, y: H * 0.22, speed: player.speed },
-          { pos: "FW", name: "ST", number: 9, x: W * 0.75, y: H / 2, speed: player.speed },
-          { pos: "FW", name: "RW", number: 7, x: W * 0.72, y: H * 0.78, speed: player.speed }
+          { pos: "GK", name: userLineup[0], number: 1, x: 50, y: H / 2, speed: goalkeeper.speed },
+          { pos: "DF", name: userLineup[1], number: 3, x: W * 0.25, y: H * 0.18, speed: player.speed * 0.85 },
+          { pos: "DF", name: userLineup[2], number: 4, x: W * 0.20, y: H * 0.36, speed: player.speed * 0.8 },
+          { pos: "DF", name: userLineup[3], number: 5, x: W * 0.20, y: H * 0.64, speed: player.speed * 0.8 },
+          { pos: "DF", name: userLineup[4], number: 2, x: W * 0.25, y: H * 0.82, speed: player.speed * 0.85 },
+          { pos: "MF", name: userLineup[5], number: 6, x: W * 0.42, y: H * 0.30, speed: player.speed * 0.9 },
+          { pos: "MF", name: userLineup[6], number: 8, x: W * 0.42, y: H * 0.70, speed: player.speed * 0.9 },
+          { pos: "MF", name: userLineup[7], number: 10, x: W * 0.58, y: H / 2, speed: player.speed * 0.95 },
+          { pos: "FW", name: userLineup[8], number: 11, x: W * 0.72, y: H * 0.22, speed: player.speed },
+          { pos: "FW", name: userLineup[9], number: 9, x: W * 0.75, y: H / 2, speed: player.speed },
+          { pos: "FW", name: userLineup[10], number: 7, x: W * 0.72, y: H * 0.78, speed: player.speed }
         ];
 
         userPositions.forEach((pos, idx) => {
@@ -189,6 +216,11 @@
           });
         });
 
+        // opponentLineup의 개수가 충분한지 보장
+        while (opponentLineup.length < 11) {
+          opponentLineup.push("수비 " + (opponentLineup.length + 1));
+        }
+
         userPositions.forEach((pos, idx) => {
           const oppX = W - pos.x;
           const oppY = pos.y;
@@ -201,7 +233,7 @@
             id: idx + 11,
             team: "opponent",
             pos: pos.pos,
-            name: pos.name,
+            name: opponentLineup[idx],
             number: pos.number,
             x: oppX,
             y: oppY,
@@ -213,7 +245,8 @@
         });
       } else {
         // 1 vs 3 (월드컵 모드 기존 유지, 비율 배분)
-        matchPlayers.push({ id: 0, team: "user", pos: "FW", name: userTeam.substring(0, 2), number: 9, x: W * 0.25, y: H / 2, homeX: W * 0.25, homeY: H / 2, speed: player.speed, radius: 14 });
+        const pName = laserShooterName || userTeam.substring(0, 2);
+        matchPlayers.push({ id: 0, team: "user", pos: "FW", name: pName, number: 9, x: W * 0.25, y: H / 2, homeX: W * 0.25, homeY: H / 2, speed: player.speed, radius: 14 });
         matchPlayers.push({ id: 1, team: "opponent", pos: "DF", name: "DF", number: 2, x: W * 0.65, y: H * 0.3, homeX: W * 0.65, homeY: H * 0.3, speed: defenders[0].speed, radius: 14 });
         matchPlayers.push({ id: 2, team: "opponent", pos: "DF", name: "DF", number: 3, x: W * 0.65, y: H * 0.7, homeX: W * 0.65, homeY: H * 0.7, speed: defenders[0].speed, radius: 14 });
         matchPlayers.push({ id: 3, team: "opponent", pos: "GK", name: "GK", number: 1, x: W - 50, y: H / 2, homeX: W - 50, homeY: H / 2, speed: goalkeeper.speed, radius: 14 });
@@ -245,7 +278,7 @@
 
       // 상대 골키퍼 속도 (상대 포인트 기준)
       goalkeeper.speed = Math.max(2.2, Math.min(3.5, 2.8 + (opponentPoints - 1550) / 300));
-      
+
       const isCL = (tournamentMode === "champions");
       canvas.width = isCL ? 1200 : 900;
       canvas.height = isCL ? 750 : 550;
@@ -264,13 +297,27 @@
       const key = e.key.toLowerCase();
       keys[key] = true;
       keys[e.key] = true;
-      
+
       if (gameState === "start") {
-        gameState = "playing";
-        lastTime = performance.now();
-        requestAnimationFrame(gameLoop);
+        if (key === "arrowleft" || key === "a") {
+          laserShooterIndex = (laserShooterIndex - 1 + userLineup.length) % userLineup.length;
+          drawStartScreen();
+          return;
+        } else if (key === "arrowright" || key === "d") {
+          laserShooterIndex = (laserShooterIndex + 1) % userLineup.length;
+          drawStartScreen();
+          return;
+        } else {
+          // 좌우 선택 키를 제외한 아무 키(스페이스바, 엔터 등)나 누르면 시작!
+          laserShooterName = userLineup[laserShooterIndex] || userLineup[0];
+          gameState = "playing";
+          lastTime = performance.now();
+          resetPositions(true); // 명단 갱신하여 선택된 슈터 이름 적용
+          requestAnimationFrame(gameLoop);
+          return;
+        }
       }
-      
+
       if (gameState === "penalty") {
         if (penaltyTurn === "opponent" && penaltySubState === "aiming") {
           if (key === "arrowup" || key === "w") {
@@ -354,8 +401,8 @@
         ball.vz_air = 0;
         ball.curveForce = 0;
 
-        const userST = matchPlayers.find(p => p.team === "user" && p.name === "ST");
-        const oppST = matchPlayers.find(p => p.team === "opponent" && p.name === "ST");
+        const userST = matchPlayers.find(p => p.team === "user" && p.pos === "FW" && p.number === 9);
+        const oppST = matchPlayers.find(p => p.team === "opponent" && p.pos === "FW" && p.number === 9);
 
         if (startingWithBall) {
           if (userST) { userST.x = 490; userST.y = 300; }
@@ -441,7 +488,7 @@
       if (keys['arrowright']) dirX += 1;
 
       if (dirX !== 0 && dirY !== 0) {
-        const len = Math.sqrt(dirX*dirX + dirY*dirY);
+        const len = Math.sqrt(dirX * dirX + dirY * dirY);
         dirX /= len;
         dirY /= len;
       } else if (dirX === 0 && dirY === 0) {
@@ -455,7 +502,7 @@
         if (p.team === "user" && p !== controlledUserPlayer && p.pos !== "GK") {
           const dx = p.x - controlledUserPlayer.x;
           const dy = p.y - controlledUserPlayer.y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
+          const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < 380) {
             const ndx = dx / dist;
             const ndy = dy / dist;
@@ -473,7 +520,7 @@
         let minDist = Infinity;
         matchPlayers.forEach(p => {
           if (p.team === "user" && p !== controlledUserPlayer && p.pos !== "GK") {
-            const d = Math.sqrt((p.x - controlledUserPlayer.x)**2 + (p.y - controlledUserPlayer.y)**2);
+            const d = Math.sqrt((p.x - controlledUserPlayer.x) ** 2 + (p.y - controlledUserPlayer.y) ** 2);
             if (d < minDist) {
               minDist = d;
               bestTarget = p;
@@ -485,10 +532,10 @@
       if (bestTarget) {
         ball.owner = null;
         passLockTimer = 0.4;
-        
+
         let dx = bestTarget.x - ball.x;
         let dy = bestTarget.y - ball.y;
-        
+
         if (type === "through") {
           // 스루 패스: 선수의 앞쪽 빈 공간으로 찔러줌
           const leadDist = 55;
@@ -500,7 +547,7 @@
           addFloatText("패스!", controlledUserPlayer.x, controlledUserPlayer.y - 20, "#00e5ff");
         }
 
-        const dist = Math.sqrt(dx*dx + dy*dy);
+        const dist = Math.sqrt(dx * dx + dy * dy);
         const speed = (type === "through") ? 13 : 11;
         ball.vx = (dx / dist) * speed;
         ball.vy = (dy / dist) * speed;
@@ -514,14 +561,14 @@
     function executeCross(type) {
       ball.owner = null;
       passLockTimer = type === "aerial" ? 0.6 : 0.45;
-      
+
       // 크로스 낙하 핵심 구역 (페널티 박스 근처)
       const targetX = 850 + (Math.random() - 0.5) * 80;
       const targetY = 300 + (Math.random() - 0.5) * 160;
 
       const dx = targetX - ball.x;
       const dy = targetY - ball.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
+      const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (type === "aerial") {
         ball.vx = (dx / dist) * 9.5;
@@ -551,7 +598,7 @@
 
       const dx = canvas.width - 15 - ball.x;
       const dy = targetY - ball.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
+      const dist = Math.sqrt(dx * dx + dy * dy);
 
       let shootSpd = player.shootSpeed;
 
@@ -560,11 +607,19 @@
         ball.curveForce = (targetY > 300) ? -0.16 : 0.16; // 회전 휘어짐
         addFloatText("감아차기!", controlledUserPlayer.x, controlledUserPlayer.y - 20, "#ff00e5");
       } else if (type === "power") {
-        shootSpd *= 1.45;
-        screenShake = 16;
-        ball.z = 0.1;
-        ball.vz_air = 1.0;
-        addFloatText("🚀 파워슛!!!", controlledUserPlayer.x, controlledUserPlayer.y - 20, "#ffea00");
+        if (controlledUserPlayer && controlledUserPlayer.name === laserShooterName) {
+          shootSpd *= 10.0;
+          screenShake = 48;
+          ball.z = 0.2;
+          ball.vz_air = 2.0;
+          addFloatText("⚡ 레이저 파워슛!!! 10x ⚡", controlledUserPlayer.x, controlledUserPlayer.y - 20, "#00ffff");
+        } else {
+          shootSpd *= 1.45;
+          screenShake = 16;
+          ball.z = 0.1;
+          ball.vz_air = 1.0;
+          addFloatText("🚀 파워슛!!!", controlledUserPlayer.x, controlledUserPlayer.y - 20, "#ffea00");
+        }
       } else if (type === "chip") {
         shootSpd *= 0.72;
         ball.z = 1;
@@ -604,11 +659,28 @@
           opponentColor = args.opponent_color || "#000000";
           userTextColor = args.user_text_color || "#FFFFFF";
           opponentTextColor = args.opponent_text_color || "#FFFFFF";
-          
+
           matchType = args.match_type || "group";
           userPoints = args.user_points || 1600;
           opponentPoints = args.opponent_points || 1600;
           tournamentMode = args.tournament_mode || "worldcup";
+
+          if (args.user_lineup) {
+            try {
+              userLineup = JSON.parse(args.user_lineup);
+              laserShooterIndex = Math.min(9, userLineup.length - 1); // 스트라이커에 해당하는 인덱스를 기본값으로 지정
+            } catch(e) {
+              console.error("Failed to parse user_lineup", e);
+            }
+          }
+
+          if (args.opponent_lineup) {
+            try {
+              opponentLineup = JSON.parse(args.opponent_lineup);
+            } catch(e) {
+              console.error("Failed to parse opponent_lineup", e);
+            }
+          }
 
           calculateAbilities();
 
@@ -631,7 +703,7 @@
     // 슛 프로세스 처리 (승부차기용)
     function startUserPenaltyShot() {
       penaltySubState = "shot";
-      
+
       const rand = Math.random();
       let gkTargetY = canvas.height / 2;
       if (rand < 0.35) {
@@ -639,16 +711,16 @@
       } else if (rand < 0.7) {
         gkTargetY = canvas.height / 2 + 40; // 아래로 다이브
       }
-      
+
       goalkeeper.gkTargetY = gkTargetY;
-      
+
       ball.vx = 12;
       ball.vy = (penaltyAimY - canvas.height / 2) * 0.12;
     }
 
     function startAiPenaltyShot() {
       penaltySubState = "shot";
-      
+
       const rand = Math.random();
       let aiTargetY = canvas.height / 2;
       if (rand < 0.3) {
@@ -660,7 +732,7 @@
       } else {
         aiTargetY = Math.random() < 0.5 ? (canvas.height / 2 - 80) : (canvas.height / 2 + 80); // 실축
       }
-      
+
       ball.vx = 12;
       ball.vy = (aiTargetY - canvas.height / 2) * 0.12;
     }
@@ -675,7 +747,7 @@
 
       ctx.textAlign = "center";
       ctx.fillStyle = "#FFFFFF";
-      
+
       const isCL = (tournamentMode === "champions");
       ctx.font = "bold 26px sans-serif";
       ctx.fillText(isCL ? "🇪🇺 UEFA 챔피언스 리그 매치 플레이 🇪🇺" : "⚽ 월드컵 2D 매치 플레이 ⚽", canvas.width / 2, 80);
@@ -699,7 +771,7 @@
       ctx.font = "bold 14px sans-serif";
       ctx.fillText("🎮 조작 방법", 100, 220);
       ctx.font = "13px sans-serif";
-      
+
       if (isCL) {
         ctx.fillText("• 이동: 방향키 (↑↓←→)", 100, 250);
         ctx.fillText("• 패스/스루패스: S / W", 100, 275);
@@ -717,7 +789,7 @@
       ctx.fillStyle = "#E0E0E0";
       ctx.font = "bold 14px sans-serif";
       ctx.fillText("📊 팀 능력치 비교 (OVR 기준)", 530, 220);
-      
+
       const userSpd = Math.round(player.speed * 20);
       const userSho = Math.round(player.shootSpeed * 6.5);
       const oppDef = Math.round(defenders[0].speed * 40);
@@ -734,10 +806,21 @@
       ctx.fillStyle = "#E0E0E0";
       ctx.fillText(`  수비속도: ${oppDef} | 골키퍼반응: ${oppGk}`, 530, 334);
 
+      // 레이저 슈터 설정 UI
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#FFB300";
+      ctx.font = "bold 15px sans-serif";
+      ctx.fillText("🔫 레이저 슈터(Laser Shooter) 지정 (방향키 좌/우 ◀ ▶)", canvas.width / 2, 395);
+
+      const shooterName = userLineup[laserShooterIndex] || "선수 없음";
+      ctx.font = "bold 22px sans-serif";
+      ctx.fillStyle = "#00F2FE"; // Glowing cyan
+      ctx.fillText(`◀   ${shooterName}   ▶`, canvas.width / 2, 430);
+
       ctx.textAlign = "center";
       ctx.fillStyle = "#00FF66";
-      ctx.font = "bold 20px sans-serif";
-      ctx.fillText("아무 키나 눌러 경기를 시작하세요!", canvas.width / 2, 460);
+      ctx.font = "bold 18px sans-serif";
+      ctx.fillText("Spacebar를 누르면 매치를 시작합니다!", canvas.width / 2, 480);
     }
 
     // 경기장 라인 그리기
@@ -796,7 +879,7 @@
 
     // 메인 게임 루프
     function gameLoop(now) {
-      if (gameState !== "playing" && gameState !== "penalty") return;
+      if (gameState !== "playing" && gameState !== "penalty" && gameState !== "celebration" && gameState !== "replay") return;
 
       const dt = (now - lastTime) / 1000;
       lastTime = now;
@@ -813,7 +896,7 @@
         timeLeft -= dt;
         if (timeLeft <= 0) {
           timeLeft = 0;
-          
+
           if (matchType === "knockout" && score.user === score.opponent) {
             if (!isExtraTime) {
               isExtraTime = true;
@@ -825,7 +908,7 @@
               gameState = "penalty";
               transitionTimer = 2.0;
               transitionType = "penalty";
-              
+
               penaltyScore = { user: 0, opponent: 0 };
               penaltyKicks = { user: [], opponent: [] };
               penaltyRound = 0;
@@ -844,6 +927,12 @@
         }
 
         update(dt);
+        render();
+      } else if (gameState === "celebration") {
+        updateCelebration(dt);
+        render();
+      } else if (gameState === "replay") {
+        updateReplay(dt);
         render();
       } else if (gameState === "penalty") {
         if (transitionTimer > 0) {
@@ -885,7 +974,7 @@
 
         // 태클 중 상대 공 소유자 볼 탈취 판정
         if (ball.owner && ball.owner.team !== "user") {
-          const d = Math.sqrt((controlledUserPlayer.x - ball.owner.x)**2 + (controlledUserPlayer.y - ball.owner.y)**2);
+          const d = Math.sqrt((controlledUserPlayer.x - ball.owner.x) ** 2 + (controlledUserPlayer.y - ball.owner.y) ** 2);
           if (d < (controlledUserPlayer.radius + ball.owner.radius + 12)) {
             ball.owner = null;
             passLockTimer = 0.35;
@@ -908,7 +997,7 @@
           if (keys['arrowdown'] || keys['s']) py += 1;
           if (keys['arrowleft'] || keys['a']) px -= 1;
           if (keys['arrowright'] || keys['d']) px += 1;
-          
+
           // 기존 슛 트리거
           if ((keys['space'] || keys[' ']) && ball.owner === controlledUserPlayer) {
             executeShoot("normal");
@@ -924,7 +1013,7 @@
 
         const sprintFactor = (isCL && (keys['e'] || keys['E'])) ? 1.55 : 1.0;
         const moveSpd = controlledUserPlayer.speed * sprintFactor;
-        
+
         controlledUserPlayer.vx = px * moveSpd;
         controlledUserPlayer.vy = py * moveSpd;
 
@@ -959,7 +1048,7 @@
           let targetX = p.homeX;
 
           // 공이 너무 가까우면 골키퍼가 직접 튀어나와 걷어냄
-          const distToBall = Math.sqrt((ball.x - p.x)**2 + (ball.y - p.y)**2);
+          const distToBall = Math.sqrt((ball.x - p.x) ** 2 + (ball.y - p.y) ** 2);
           if (distToBall < 125 && !ball.owner) {
             targetX = ball.x;
             targetY = ball.y;
@@ -967,7 +1056,7 @@
 
           const gkDx = targetX - p.x;
           const gkDy = targetY - p.y;
-          const gkDist = Math.sqrt(gkDx*gkDx + gkDy*gkDy);
+          const gkDist = Math.sqrt(gkDx * gkDx + gkDy * gkDy);
 
           if (gkDist > 20) {
             p.vx = (gkDx / gkDist) * p.speed;
@@ -981,7 +1070,7 @@
           }
           p.x += p.vx;
           p.y += p.vy;
-          
+
           // 골키퍼와 공 충돌 시 선방
           if (checkCollision(p, ball)) {
             if (ball.owner) ball.owner = null;
@@ -1009,13 +1098,13 @@
           if (p.pos === "FW") {
             let runTargetX = (p.team === "user") ? Math.min(canvas.width - 50, ball.x + 180) : Math.max(50, ball.x - 180);
             let runTargetY = p.homeY + (ball.y - p.homeY) * 0.45;
-            
+
             // 근처 적 수비수를 찾아 그 수비수로부터 떨어지는 공간으로 조향
             let closestOpp = null;
             let minOppD = Infinity;
             matchPlayers.forEach(opp => {
               if (opp.team !== p.team) {
-                const d = Math.sqrt((opp.x - runTargetX)**2 + (opp.y - runTargetY)**2);
+                const d = Math.sqrt((opp.x - runTargetX) ** 2 + (opp.y - runTargetY) ** 2);
                 if (d < minOppD) {
                   minOppD = d;
                   closestOpp = opp;
@@ -1034,12 +1123,12 @@
             // 미드필더: 패스를 받기 용이한 빈 하프스페이스 포켓으로 이동
             let pocketX = ball.x + (p.team === "user" ? 75 : -75);
             let pocketY = p.homeY + (ball.y - p.homeY) * 0.5;
-            
+
             let closestOpp = null;
             let minOppD = Infinity;
             matchPlayers.forEach(opp => {
               if (opp.team !== p.team) {
-                const d = Math.sqrt((opp.x - pocketX)**2 + (opp.y - pocketY)**2);
+                const d = Math.sqrt((opp.x - pocketX) ** 2 + (opp.y - pocketY) ** 2);
                 if (d < minOppD) {
                   minOppD = d;
                   closestOpp = opp;
@@ -1061,10 +1150,10 @@
           // [수비] 대인 마킹, 볼 압박, 패스 길목 인터셉트
           let closestToBall = null;
           let minDist = Infinity;
-          
+
           matchPlayers.forEach(other => {
             if (other.team === p.team && other.pos !== "GK") {
-              const d = Math.sqrt((ball.x - other.x)**2 + (ball.y - other.y)**2);
+              const d = Math.sqrt((ball.x - other.x) ** 2 + (ball.y - other.y) ** 2);
               if (d < minDist) {
                 minDist = d;
                 closestToBall = other;
@@ -1077,14 +1166,14 @@
             targetY = ball.y;
           } else {
             // 패스 예측 인터셉트 물리 (Vector Projection Interception)
-            const ballSpd = Math.sqrt(ball.vx*ball.vx + ball.vy*ball.vy);
+            const ballSpd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
             let isIntercepting = false;
-            
+
             if (!ball.owner && ballSpd > 2.2) {
               const dx = p.x - ball.x;
               const dy = p.y - ball.y;
               const proj = (dx * ball.vx + dy * ball.vy) / (ballSpd * ballSpd);
-              
+
               // 공이 굴러가는 전방 방향이고 패스 연장선 1.4초 지점 이내일 때
               if (proj > 0 && proj < 1.4) {
                 targetX = ball.x + ball.vx * proj;
@@ -1102,7 +1191,7 @@
               let minOppDist = Infinity;
               matchPlayers.forEach(opp => {
                 if (opp.team !== p.team && opp.pos !== "GK") {
-                  const d = Math.sqrt((p.x - opp.x)**2 + (p.y - opp.y)**2);
+                  const d = Math.sqrt((p.x - opp.x) ** 2 + (p.y - opp.y) ** 2);
                   if (d < minOppDist) {
                     minOppDist = d;
                     markTarget = opp;
@@ -1113,11 +1202,11 @@
               if (markTarget && minOppDist < 180) {
                 const goalX = (p.team === "user") ? 50 : canvas.width - 50;
                 baseTargetX = markTarget.x * 0.75 + goalX * 0.25;
-                baseTargetY = markTarget.y * 0.75 + (canvas.height/2) * 0.25;
+                baseTargetY = markTarget.y * 0.75 + (canvas.height / 2) * 0.25;
               }
 
               // 상대 공일 때 한곳으로 뭉치지 않도록 볼 주위 110px 대형 유지 (밀어내기 존 수비)
-              const ballDist = Math.sqrt((baseTargetX - ball.x)**2 + (baseTargetY - ball.y)**2);
+              const ballDist = Math.sqrt((baseTargetX - ball.x) ** 2 + (baseTargetY - ball.y) ** 2);
               if (ballDist < 110) {
                 const angle = Math.atan2(baseTargetY - ball.y, baseTargetX - ball.x);
                 targetX = ball.x + Math.cos(angle) * 110;
@@ -1182,16 +1271,16 @@
         for (let j = i + 1; j < matchPlayers.length; j++) {
           let p2 = matchPlayers[j];
           if (p2.pos === "GK") continue;
-          
+
           if (p1.team === p2.team) {
             const dx = p1.x - p2.x;
             const dy = p1.y - p2.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
+            const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < 42 && dist > 0) {
               const pushForce = (42 - dist) * 0.08;
               const pushX = (dx / dist) * pushForce;
               const pushY = (dy / dist) * pushForce;
-              
+
               if (p1 !== controlledUserPlayer || p1.tackleTimer <= 0) {
                 p1.x += pushX;
                 p1.y += pushY;
@@ -1209,17 +1298,17 @@
       if (ball.owner && ball.owner.team === "opponent") {
         const owner = ball.owner;
         const speedFactor = 0.92;
-        
+
         let baseVx = -owner.speed * speedFactor;
         let baseVy = Math.sign(canvas.height / 2 - owner.y) * owner.speed * 0.18;
-        
+
         // 유저 수비수가 바로 앞에서 마크할 시 sidestep 드리블 페인팅 돌파
         let dodgeY = 0;
         matchPlayers.forEach(p => {
           if (p.team === "user") {
             const dx = p.x - owner.x;
             const dy = p.y - owner.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
+            const dist = Math.sqrt(dx * dx + dy * dy);
             if (dx < 0 && dist < 95 && Math.abs(dy) < 65) {
               dodgeY += Math.sign(owner.y - p.y || 1) * owner.speed * 0.82;
             }
@@ -1236,7 +1325,7 @@
         let distToPresser = Infinity;
         matchPlayers.forEach(p => {
           if (p.team === "user") {
-            const d = Math.sqrt((owner.x - p.x)**2 + (owner.y - p.y)**2);
+            const d = Math.sqrt((owner.x - p.x) ** 2 + (owner.y - p.y) ** 2);
             if (d < 85) {
               userPressing = true;
               if (d < distToPresser) distToPresser = d;
@@ -1247,7 +1336,7 @@
         // 상대 AI 의 크로스 존 돌입 및 크로스 판정 (좌우 윙 구역)
         // 골대 근처 x < 380 이면서 Y축 터치라인 부근 (y < 160 또는 y > canvas.height - 160)
         const inCrossZone = (owner.x < 380 && owner.x > 100 && (owner.y < 160 || owner.y > canvas.height - 160));
-        
+
         if (inCrossZone && Math.random() < 0.05) {
           // 크로스 타겟 찾기 (박스 안쪽의 동료 FW/MF)
           let crossTarget = null;
@@ -1265,8 +1354,8 @@
             passLockTimer = 0.6;
             const dx = crossTarget.x - ball.x;
             const dy = crossTarget.y - ball.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
             ball.vx = (dx / dist) * 11.2;
             ball.vy = (dy / dist) * 11.2;
             ball.z = 1.0;
@@ -1274,7 +1363,7 @@
             ball.curveForce = 0;
             addFloatText("OPPONENT CROSS ⬆️", ball.x, ball.y - 20, "#ff3366");
           }
-        } 
+        }
         // 슛 구역 진입 시 슛 시도 (x < 260 && Y축 골대 근처)
         else if (owner.x < 260 && Math.random() < 0.07) {
           ball.owner = null;
@@ -1282,8 +1371,8 @@
           let targetY = field.goalY + Math.random() * field.goalWidth;
           const dx = 20 - ball.x;
           const dy = targetY - ball.y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
           const shotRand = Math.random();
           if (shotRand < 0.28) {
             // 🚀 파워 슛
@@ -1311,16 +1400,16 @@
             ball.curveForce = 0;
             addFloatText("OPPONENT SHOOT! ⚽", ball.x, ball.y - 20, "#ff3333");
           }
-        } 
+        }
         // 압박 당할 때 융통성 있는 스마트 패스 및 티키타카(원터치 패스) 연계
         else if (userPressing && ((owner.possessionTime > 0.04 && owner.possessionTime < 0.22) || Math.random() < 0.065)) {
           let bestTeammate = null;
           let minGoalDist = Infinity;
-          
+
           matchPlayers.forEach(p => {
             if (p.team === "opponent" && p !== owner && p.pos !== "GK") {
               if (p.x < owner.x + 80) { // 전방 동료
-                const dGoal = Math.sqrt((p.x - 20)**2 + (p.y - canvas.height/2)**2);
+                const dGoal = Math.sqrt((p.x - 20) ** 2 + (p.y - canvas.height / 2) ** 2);
                 if (dGoal < minGoalDist) {
                   minGoalDist = dGoal;
                   bestTeammate = p;
@@ -1334,8 +1423,8 @@
             passLockTimer = 0.45;
             const dx = bestTeammate.x - ball.x;
             const dy = bestTeammate.y - ball.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
             ball.vx = (dx / dist) * 10.5;
             ball.vy = (dy / dist) * 10.5;
             ball.z = 0;
@@ -1405,8 +1494,8 @@
         if (ball.x - ball.radius < 20) {
           if (ball.y >= field.goalY && ball.y <= field.goalY + field.goalWidth) {
             score.opponent += 1;
-            addFloatText("실점!", 180, 300, "#FF0000");
-            resetPositions(true); // 유저 선축
+            let scorer = lastShotScorer && lastShotScorer.team === "opponent" ? lastShotScorer : matchPlayers.find(p => p.team === "opponent" && p.pos === "FW");
+            startCelebration(scorer, "opponent");
           } else {
             ball.x = 20 + ball.radius;
             ball.vx = -ball.vx * ball.bounce;
@@ -1417,8 +1506,8 @@
         if (ball.x + ball.radius >= canvas.width - 20) {
           if (ball.y >= field.goalY && ball.y <= field.goalY + field.goalWidth) {
             score.user += 1;
-            addFloatText("골인!! GOAL!", canvas.width - 180, 300, "#00FF66");
-            resetPositions(false); // 상대 선축
+            let scorer = lastShotScorer && lastShotScorer.team === "user" ? lastShotScorer : controlledUserPlayer;
+            startCelebration(scorer, "user");
           } else {
             ball.x = canvas.width - 20 - ball.radius;
             ball.vx = -ball.vx * ball.bounce;
@@ -1433,7 +1522,7 @@
           matchPlayers.forEach(p => {
             const dx = ball.x - p.x;
             const dy = ball.y - p.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
+            const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < (p.radius + ball.radius + 3)) {
               if (dist < minDist) {
                 minDist = dist;
@@ -1447,6 +1536,7 @@
               closestPlayer.possessionTime = 0;
             }
             ball.owner = closestPlayer;
+            lastShotScorer = closestPlayer; // 최근 터치 선수 기록
             ball.vx = 0; ball.vy = 0; ball.z = 0; ball.vz_air = 0;
             ball.curveForce = 0;
             if (closestPlayer.team === "user") {
@@ -1484,7 +1574,7 @@
         let minDist = Infinity;
         matchPlayers.forEach(p => {
           if (p.team === "user" && p.pos !== "GK") {
-            const d = Math.sqrt((ball.x - p.x)**2 + (ball.y - p.y)**2);
+            const d = Math.sqrt((ball.x - p.x) ** 2 + (ball.y - p.y) ** 2);
             if (d < minDist) {
               minDist = d;
               closestUser = p;
@@ -1494,6 +1584,161 @@
         if (closestUser) {
           controlledUserPlayer = closestUser;
         }
+      }
+
+      // 리플레이용 경기 상황 기록
+      const frameData = {
+        ball: { x: ball.x, y: ball.y, z: ball.z, radius: ball.radius },
+        players: matchPlayers.map(p => ({
+          x: p.x,
+          y: p.y,
+          color: p.color,
+          name: p.name,
+          pos: p.pos,
+          team: p.team,
+          radius: p.radius,
+          card: p.card
+        })),
+        goalkeeper: { x: goalkeeper.x, y: goalkeeper.y }
+      };
+      historyBuffer.push(frameData);
+      if (historyBuffer.length > 180) { // 최근 3초 분량만 순환 저장
+        historyBuffer.shift();
+      }
+    }
+
+    // 골 세레머니 초기화
+    function startCelebration(scorer, team) {
+      gameState = "celebration";
+      celebrationScorer = scorer;
+      celebrationTeam = team;
+      celebrationTimer = 2.5; // 2.5초간 세레머니 연출
+      particles = [];
+
+      if (scorer) {
+        scorer.celebrationX = team === "user" ? canvas.width - 80 : 80;
+        scorer.celebrationY = canvas.height - 80;
+        addFloatText("🎉 GOAL!!! " + scorer.name + "의 득점 세레모니!", scorer.x, scorer.y - 25, "#FFD700");
+      }
+
+      // 실점팀 선수 실망 모션 플래그
+      matchPlayers.forEach(p => {
+        if (p.team !== team) {
+          p.isSad = true;
+        } else {
+          p.isSad = false;
+        }
+        p.yOffset = 0;
+      });
+    }
+
+    // 골 세레머니 물리 업데이트
+    function updateCelebration(dt) {
+      if (celebrationScorer) {
+        const dx = celebrationScorer.celebrationX - celebrationScorer.x;
+        const dy = celebrationScorer.celebrationY - celebrationScorer.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > 5) {
+          celebrationScorer.x += (dx / dist) * 110 * dt;
+          celebrationScorer.y += (dy / dist) * 110 * dt;
+          
+          // 슬라이딩 모션 파티클
+          if (Math.random() < 0.3) {
+            particles.push({
+              x: celebrationScorer.x + (Math.random() - 0.5) * 10,
+              y: celebrationScorer.y + (Math.random() - 0.5) * 10,
+              vx: (Math.random() - 0.5) * 30,
+              vy: (Math.random() - 0.5) * 30,
+              color: "#FFD700",
+              alpha: 1.0,
+              life: 0.5
+            });
+          }
+        } else {
+          // 세레머니 제자리 댄스 (상하 요동)
+          celebrationScorer.yOffset = Math.sin(Date.now() * 0.015) * 6;
+          
+          // 불꽃놀이 파티클 스폰
+          if (Math.random() < 0.15) {
+            for (let i = 0; i < 3; i++) {
+              particles.push({
+                x: celebrationScorer.x,
+                y: celebrationScorer.y - 10,
+                vx: (Math.random() - 0.5) * 80,
+                vy: -Math.random() * 90 - 20,
+                color: ["#FF00FF", "#00FFFF", "#FFD700", "#00FF66"][Math.floor(Math.random() * 4)],
+                alpha: 1.0,
+                life: 0.8
+              });
+            }
+          }
+        }
+      }
+
+      // 아군 선수들은 세레머니 방향으로 축하 러닝
+      matchPlayers.forEach(p => {
+        if (p.team === celebrationTeam && p !== celebrationScorer && p.pos !== "GK") {
+          const dx = celebrationScorer.x - p.x;
+          const dy = celebrationScorer.y - p.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist > 25) {
+            p.x += (dx / dist) * 120 * dt;
+            p.y += (dy / dist) * 120 * dt;
+          }
+        } else if (p.isSad) {
+          p.yOffset = 3; // 실점 팀 고개 숙임
+        }
+      });
+
+      // 파티클 라이프사이클 계산
+      particles.forEach((pt, index) => {
+        pt.x += pt.vx * dt;
+        pt.y += pt.vy * dt;
+        pt.vy += 45 * dt; // 중력
+        pt.life -= dt;
+        if (pt.life <= 0) particles.splice(index, 1);
+      });
+
+      // 골대 안 공 감속
+      ball.x += ball.vx * dt;
+      ball.y += ball.vy * dt;
+      ball.vx *= 0.90;
+      ball.vy *= 0.90;
+
+      // 플로팅 텍스트
+      floatTexts.forEach(ft => {
+        ft.y -= 0.5;
+        ft.life -= 1;
+        ft.alpha = ft.life / 60;
+      });
+      floatTexts = floatTexts.filter(ft => ft.life > 0);
+
+      celebrationTimer -= dt;
+      if (celebrationTimer <= 0) {
+        startReplay();
+      }
+    }
+
+    // 리플레이 슬로우모션 시작
+    function startReplay() {
+      gameState = "replay";
+      replayIndex = 0;
+    }
+
+    // 리플레이 프레임 업데이트
+    function updateReplay(dt) {
+      replayIndex += 0.38; // 슬로우모션 감속 배율
+      if (replayIndex >= historyBuffer.length) {
+        // 리플레이 완료 시 정상 매치 복귀
+        gameState = "playing";
+        resetPositions(celebrationTeam === "opponent");
+        historyBuffer = [];
+
+        // 모션 초기화
+        matchPlayers.forEach(p => {
+          p.yOffset = 0;
+          p.isSad = false;
+        });
       }
     }
 
@@ -1613,6 +1858,74 @@
     function render() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      const isCL = (tournamentMode === "champions");
+
+      // 슬로우모션 리플레이 그리기 분기
+      if (gameState === "replay" && historyBuffer.length > 0) {
+        drawPitch();
+
+        const frame = historyBuffer[Math.floor(replayIndex)] || historyBuffer[historyBuffer.length - 1];
+
+        const uTextCol = userTextColor;
+        const oTextCol = opponentTextColor;
+
+        // 필드 플레이어 그리기
+        frame.players.forEach(p => {
+          if (p.card === 'red') return;
+          const bodyColor = p.color;
+          const textColor = (p.team === "user") ? uTextCol : oTextCol;
+
+          let label = p.name;
+          if (p.pos === "GK") label = "GK";
+          else if (p.team === "user" && !isCL) {
+            label = userTeam.substring(0, 2);
+          }
+
+          drawCharacter(p.x, p.y, bodyColor, textColor, label);
+        });
+
+        // 공 그리기
+        const ballDrawY = frame.ball.y - frame.ball.z * 4.2;
+        const radiusDraw = frame.ball.radius + frame.ball.z * 0.16;
+        ctx.beginPath();
+        ctx.arc(frame.ball.x, ballDrawY, radiusDraw, 0, Math.PI * 2);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fill();
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.arc(frame.ball.x, ballDrawY, radiusDraw * 0.42, 0, Math.PI * 2);
+        ctx.fill();
+
+        // UI 렌더링
+        drawUI();
+
+        // 리플레이 HUD 오버레이 필터
+        ctx.fillStyle = "rgba(0, 242, 254, 0.04)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 깜빡이는 녹화/리플레이 아이콘
+        if (Math.floor(Date.now() / 350) % 2 === 0) {
+          ctx.fillStyle = "#FF3333";
+          ctx.beginPath();
+          ctx.arc(50, 75, 7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "bold 18px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("SLOW-MOTION REPLAY", 68, 81);
+
+        // 하이테크 리플레이 프레임 보더
+        ctx.strokeStyle = "rgba(0, 242, 254, 0.25)";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+        return; // 리플레이 그리기 종료
+      }
+
       ctx.save();
       // 파워슛 등 화면 흔들림 효과 연동
       if (screenShake > 0) {
@@ -1622,8 +1935,6 @@
       }
 
       drawPitch();
-
-      const isCL = (tournamentMode === "champions");
 
       // 모든 필드 플레이어 드로잉
       matchPlayers.forEach(p => {
@@ -1661,7 +1972,7 @@
           ctx.fill();
         }
 
-        drawCharacter(p.x, p.y, bodyColor, textColor, label);
+        drawCharacter(p.x, p.y + (p.yOffset || 0), bodyColor, textColor, label);
 
         // 오프더볼 침투 런 표시기
         if (p.isMakingRun && p.team === "user" && !isControlled) {
@@ -1679,15 +1990,15 @@
           const barHeight = 4;
           const barX = p.x - barWidth / 2;
           const barY = p.y - 24;
-          
+
           ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
           ctx.fillRect(barX, barY, barWidth, barHeight);
-          
+
           const fillWidth = barWidth * (playerPossessionTimer / 10.0);
           let color = "#00FF66";
           if (playerPossessionTimer < 3) color = "#FF3333";
           else if (playerPossessionTimer < 6) color = "#FFA500";
-          
+
           ctx.fillStyle = color;
           ctx.fillRect(barX, barY, fillWidth, barHeight);
         }
@@ -1726,6 +2037,35 @@
         ctx.restore();
       });
 
+      // 세레머니 폭죽 파티클 그리기
+      particles.forEach(pt => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = pt.color;
+        ctx.globalAlpha = pt.alpha;
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // 세레머니 대형 골 자막 그리기
+      if (gameState === "celebration") {
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+        ctx.fillRect(0, canvas.height / 2 - 60, canvas.width, 120);
+
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#FFD700";
+        ctx.font = "900 48px Outfit, sans-serif";
+        ctx.fillText("⚽ GOAL!!! ⚽", canvas.width / 2, canvas.height / 2 - 8);
+
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "bold 20px sans-serif";
+        const scorerName = celebrationScorer ? celebrationScorer.name : "득점 성공";
+        ctx.fillText(`${scorerName} 선수의 멋진 슈팅!`, canvas.width / 2, canvas.height / 2 + 35);
+        ctx.restore();
+      }
+
       ctx.restore(); // 화면진동 해제
 
       drawUI();
@@ -1733,7 +2073,7 @@
       if (transitionTimer > 0) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
+
         ctx.textAlign = "center";
         ctx.fillStyle = "#FFD700";
         if (transitionType === "extratime") {
@@ -1790,7 +2130,7 @@
       ctx.font = "bold 20px monospace";
       ctx.fillStyle = "#FFD700";
       ctx.fillText(`${score.user} - ${score.opponent}`, canvas.width / 2, 30);
-      
+
       ctx.font = "14px sans-serif";
       ctx.fillStyle = "#E0E0E0";
       const timeLabel = isExtraTime ? "연장전" : "시간";
@@ -1878,7 +2218,7 @@
           ctx.fillStyle = "#FFFFFF";
           ctx.font = "bold 15px sans-serif";
           ctx.fillText("방향키(↑:위, ↓:아래, ←/→:중앙)를 선택하고 Spacebar를 누르면 AI가 슛을 진행합니다!", canvas.width / 2, canvas.height - 70);
-          
+
           ctx.fillStyle = "#FFEA00";
           ctx.font = "bold 16px sans-serif";
           let dirText = "중앙 (CENTER)";
@@ -1905,7 +2245,7 @@
 
       ctx.font = "bold 24px sans-serif";
       ctx.fillStyle = "#FFFFFF";
-      
+
       if (penaltyKicks.user.length > 0) {
         ctx.fillText(`${userTeam} ${score.user} (${penaltyScore.user}) : (${penaltyScore.opponent}) ${score.opponent} ${opponentTeam}`, canvas.width / 2, canvas.height / 2 - 30);
       } else {
@@ -1954,4 +2294,5 @@
     }
   </script>
 </body>
+
 </html>
