@@ -354,10 +354,10 @@ with tab2:
             if completed_time > st.session_state.last_processed_timestamp:
                 st.session_state.last_processed_timestamp = completed_time
                 
-                user_score = game_result["userScore"]
-                opp_score = game_result["aiScore"]
-                user_pk = game_result.get("userPKScore")
-                opp_pk = game_result.get("aiPKScore")
+                user_score = int(game_result["userScore"])
+                opp_score = int(game_result["aiScore"])
+                user_pk = int(game_result["userPKScore"]) if game_result.get("userPKScore") is not None else None
+                opp_pk = int(game_result["aiPKScore"]) if game_result.get("aiPKScore") is not None else None
                 
                 # 매치 결과 저장
                 if match_type == "group" and match_idx is not None:
@@ -474,10 +474,15 @@ with tab2:
                 u_tot = f"{pk['user_score']} ({user_sc})"
                 o_tot = f"{pk['opp_score']} ({opp_sc})"
                 
-                st.session_state.bracket_matches[round_name][m_idx]["score1"] = u_tot
-                st.session_state.bracket_matches[round_name][m_idx]["score2"] = o_tot
-                st.session_state.bracket_matches[round_name][m_idx]["played"] = True
-                st.session_state.bracket_matches[round_name][m_idx]["winner"] = winner
+                match_item = st.session_state.bracket_matches[round_name][m_idx]
+                if match_item["team1"] == pk["user_code"]:
+                    match_item["score1"] = u_tot
+                    match_item["score2"] = o_tot
+                else:
+                    match_item["score1"] = o_tot
+                    match_item["score2"] = u_tot
+                match_item["played"] = True
+                match_item["winner"] = winner
                 
                 st.session_state.penalty_shootout = None
                 st.rerun()
@@ -835,7 +840,7 @@ with tab2:
                                     for m in st.session_state.group_matches:
                                         if m["group"] == gn and m["played"]:
                                             t1, t2 = m["team1"], m["team2"]
-                                            s1, s2 = m["score1"], m["score2"]
+                                            s1, s2 = int(m["score1"]), int(m["score2"])
                                             if s1 > s2:
                                                 stands[t1]["points"] += 3
                                                 stands[t1]["gd"] += (s1 - s2)
@@ -949,7 +954,7 @@ with tab2:
             for m in st.session_state.group_matches:
                 if m["group"] == gn and m["played"]:
                     t1, t2 = m["team1"], m["team2"]
-                    s1, s2 = m["score1"], m["score2"]
+                    s1, s2 = int(m["score1"]), int(m["score2"])
                     if s1 > s2:
                         stands[t1]["points"] += 3
                         stands[t1]["gd"] += (s1 - s2)
@@ -1015,7 +1020,7 @@ with tab2:
                 for m in st.session_state.group_matches:
                     if m["group"] == gn and m["played"]:
                         t1, t2 = m["team1"], m["team2"]
-                        s1, s2 = m["score1"], m["score2"]
+                        s1, s2 = int(m["score1"]), int(m["score2"])
                         if s1 > s2:
                             stands[t1]["points"] += 3
                             stands[t1]["gd"] += (s1 - s2)
