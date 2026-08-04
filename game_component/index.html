@@ -303,9 +303,28 @@
 
     // 키보드 이벤트 리스너
     window.addEventListener('keydown', (e) => {
-      const key = e.key.toLowerCase();
+      let key = e.key ? e.key.toLowerCase() : "";
+      
+      // 구형 브라우저 및 특정 OS 키 바인딩 표준화
+      if (key === "up") key = "arrowup";
+      if (key === "down") key = "arrowdown";
+      if (key === "left") key = "arrowleft";
+      if (key === "right") key = "arrowright";
+      
+      // keyCode 기반 폴백 지원 (일부 웹뷰 대응)
+      if (e.keyCode === 38) key = "arrowup";
+      if (e.keyCode === 40) key = "arrowdown";
+      if (e.keyCode === 37) key = "arrowleft";
+      if (e.keyCode === 39) key = "arrowright";
+      if (e.keyCode === 87) key = "w";
+      if (e.keyCode === 83) key = "s";
+      if (e.keyCode === 65) key = "a";
+      if (e.keyCode === 68) key = "d";
+      if (e.keyCode === 32) key = " "; // space
+
       keys[key] = true;
       keys[e.key] = true;
+      if (e.code) keys[e.code.toLowerCase()] = true;
 
       if (gameState === "start") {
         if (key === "arrowleft" || key === "a") {
@@ -383,9 +402,28 @@
     });
 
     window.addEventListener('keyup', (e) => {
-      const key = e.key.toLowerCase();
+      let key = e.key ? e.key.toLowerCase() : "";
+      
+      // 구형 브라우저 및 특정 OS 키 바인딩 표준화
+      if (key === "up") key = "arrowup";
+      if (key === "down") key = "arrowdown";
+      if (key === "left") key = "arrowleft";
+      if (key === "right") key = "arrowright";
+      
+      // keyCode 기반 폴백 지원 (일부 웹뷰 대응)
+      if (e.keyCode === 38) key = "arrowup";
+      if (e.keyCode === 40) key = "arrowdown";
+      if (e.keyCode === 37) key = "arrowleft";
+      if (e.keyCode === 39) key = "arrowright";
+      if (e.keyCode === 87) key = "w";
+      if (e.keyCode === 83) key = "s";
+      if (e.keyCode === 65) key = "a";
+      if (e.keyCode === 68) key = "d";
+      if (e.keyCode === 32) key = " "; // space
+
       keys[key] = false;
       keys[e.key] = false;
+      if (e.code) keys[e.code.toLowerCase()] = false;
     });
 
     // 객체 배치 초기화
